@@ -1,10 +1,9 @@
-"""Ingest screen: pick directory/files, show per-file progress, report summary."""
+"""Ingest screen: path / options form + real-time error log."""
 from __future__ import annotations
 
-import threading
 from pathlib import Path
 
-from textual import on, work
+from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
@@ -16,7 +15,6 @@ from textual.widgets import (
     Header,
     Input,
     Label,
-    ProgressBar,
     Static,
 )
 
@@ -35,16 +33,46 @@ class IngestScreen(Screen):
                 yield Checkbox("Recursive", id="recursive", value=True)
                 yield Checkbox("Network metadata (AcoustID)", id="use-network", value=True)
                 yield Checkbox("Force re-analysis", id="force", value=False)
-            yield ProgressBar(id="progress", total=100, show_eta=False)
-            yield Static("", id="progress-label")
+            yield Static("Errors only — successful tracks are not listed here.", id="log-hint")
             yield DataTable(id="log-table")
-            yield Static("", id="summary-label")
         yield Footer()
 
     def on_mount(self) -> None:
         table = self.query_one("#log-table", DataTable)
-        table.add_columns("File", "Status", "Note")
-        self.query_one("#progress", ProgressBar).visible = False
+        table.add_columns("File", "Issue")
+        self._populate_errors()
+        self._sync_button()
+
+    def on_screen_resume(self) -> None:
+        self._populate_errors()
+        self._sync_button()
+
+    # ── Called by App ──────────────────────────────────────────────────────
+
+    def add_error(self, file_path: str, message: str) -> None:
+        """Append one error row — called from App on the main thread."""
+        self.query_one("#log-table", DataTable).add_row(
+            Path(file_path).name, message
+        )
+
+    def on_ingest_finished(self) -> None:
+        self._sync_button()
+
+    # ── Internal helpers ───────────────────────────────────────────────────
+
+    def _populate_errors(self) -> None:
+        table = self.query_one("#log-table", DataTable)
+        table.clear()
+        for file_path, message in self.app._error_log:  # type: ignore[attr-defined]
+            table.add_row(Path(file_path).name, message)
+
+    def _sync_button(self) -> None:
+        running = self.app._ingest_running  # type: ignore[attr-defined]
+        btn = self.query_one("#ingest-btn", Button)
+        btn.disabled = running
+        btn.label = "Ingesting…" if running else "Ingest"
+
+    # ── Events ─────────────────────────────────────────────────────────────
 
     @on(Button.Pressed, "#ingest-btn")
     def start_ingest(self) -> None:
@@ -57,69 +85,10 @@ class IngestScreen(Screen):
             self.notify(f"Path not found: {path}", severity="error")
             return
 
-        recursive = self.query_one("#recursive", Checkbox).value
+        recursive  = self.query_one("#recursive",   Checkbox).value
         use_network = self.query_one("#use-network", Checkbox).value
-        force = self.query_one("#force", Checkbox).value
+        force       = self.query_one("#force",       Checkbox).value
 
-        self._run_ingest(path, recursive, use_network, force)
-
-    @work(thread=True)
-    def _run_ingest(
-        self, path: Path, recursive: bool, use_network: bool, force: bool
-    ) -> None:
-        from ...ingest import discover_files, ingest_files
-        from ...ingest import IngestProgress
-
-        db = self.app.db  # type: ignore[attr-defined]
-
-        files = discover_files(path, recursive=recursive)
-        if not files:
-            self.call_from_thread(self.notify, "No audio files found", severity="warning")
-            return
-
-        total = len(files)
-        self.app.call_from_thread(self._setup_progress, total)
-
-        done = [0]
-
-        def on_progress(p: IngestProgress) -> None:
-            if p.status in ("done", "skipped", "error"):
-                done[0] += 1
-                self.app.call_from_thread(
-                    self._update_progress, done[0], total, p.file_path, p.status, p.message
-                )
-
-        summary = ingest_files(
-            files, db, use_network=use_network, force_reanalysis=force,
-            progress_cb=on_progress
-        )
-
-        self.app.call_from_thread(
-            self._show_summary,
-            summary.added, summary.updated, summary.skipped, summary.errors
-        )
-
-    def _setup_progress(self, total: int) -> None:
-        bar = self.query_one("#progress", ProgressBar)
-        bar.visible = True
-        bar.total = total
-        bar.progress = 0
-        table = self.query_one("#log-table", DataTable)
-        table.clear()
-
-    def _update_progress(
-        self, done: int, total: int, path: str, status: str, note: str
-    ) -> None:
-        bar = self.query_one("#progress", ProgressBar)
-        bar.progress = done
-        label = self.query_one("#progress-label", Static)
-        label.update(f"{done}/{total}")
-        filename = Path(path).name
-        status_str = {"done": "✓", "skipped": "–", "error": "✗"}.get(status, status)
-        self.query_one("#log-table", DataTable).add_row(filename, status_str, note)
-
-    def _show_summary(self, added: int, updated: int, skipped: int, errors: int) -> None:
-        self.query_one("#summary-label", Static).update(
-            f"Done — added: {added}  updated: {updated}  skipped: {skipped}  errors: {errors}"
-        )
-        self.query_one("#progress", ProgressBar).visible = False
+        self.query_one("#log-table", DataTable).clear()
+        self.app.start_ingest(path, recursive, use_network, force)  # type: ignore[attr-defined]
+        self._sync_button()
