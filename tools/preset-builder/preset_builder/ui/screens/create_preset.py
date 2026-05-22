@@ -26,6 +26,7 @@ class CreatePresetScreen(Screen):
         super().__init__()
         self._rows: list = []
         self._selected: set[int] = set()
+        self._check_col_key: object = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -47,7 +48,7 @@ class CreatePresetScreen(Screen):
 
     def on_mount(self) -> None:
         table = self.query_one("#track-table", DataTable)
-        table.add_columns("", "Artist", "Title", "Genre", "Mood", "Analyzed")
+        (self._check_col_key, *_) = table.add_columns("", "Artist", "Title", "Genre", "Mood", "Analyzed")
         self._load_tracks()
 
     def _load_tracks(self, filter_text: str = "") -> None:
@@ -95,6 +96,7 @@ class CreatePresetScreen(Screen):
         track_id = int(row_keys[cursor.row].value)  # type: ignore[arg-type]
         if track_id in self._selected:
             self._selected.discard(track_id)
+            table.update_cell(str(track_id), self._check_col_key, " ")
         else:
             db = self.app.db  # type: ignore[attr-defined]
             analysis = db.get_analysis(track_id)
@@ -102,7 +104,8 @@ class CreatePresetScreen(Screen):
                 self.notify("Track not yet analyzed — ingest it first", severity="warning")
                 return
             self._selected.add(track_id)
-        self._load_tracks(self.query_one("#filter-input", Input).value)
+            table.update_cell(str(track_id), self._check_col_key, "✓")
+        self._update_count()
 
     @on(Button.Pressed, "#clear-btn")
     def on_clear(self) -> None:

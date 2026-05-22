@@ -78,14 +78,14 @@ class IngestScreen(Screen):
             return
 
         total = len(files)
-        self.call_from_thread(self._setup_progress, total)
+        self.app.call_from_thread(self._setup_progress, total)
 
         done = [0]
 
         def on_progress(p: IngestProgress) -> None:
             if p.status in ("done", "skipped", "error"):
                 done[0] += 1
-                self.call_from_thread(
+                self.app.call_from_thread(
                     self._update_progress, done[0], total, p.file_path, p.status, p.message
                 )
 
@@ -94,7 +94,7 @@ class IngestScreen(Screen):
             progress_cb=on_progress
         )
 
-        self.call_from_thread(
+        self.app.call_from_thread(
             self._show_summary,
             summary.added, summary.updated, summary.skipped, summary.errors
         )

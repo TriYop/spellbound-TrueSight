@@ -82,7 +82,9 @@ class Database:
     # ── Connection management ──────────────────────────────────────────────
 
     def open(self) -> None:
-        self._conn = sqlite3.connect(str(self._path))
+        # check_same_thread=False is safe here: all writes are wrapped in
+        # explicit transactions and the WAL journal handles concurrent access.
+        self._conn = sqlite3.connect(str(self._path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_DDL)
 
