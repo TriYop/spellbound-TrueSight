@@ -20,6 +20,7 @@ class CreatePresetScreen(Screen):
     BINDINGS = [
         ("escape", "app.pop_screen", "Back"),
         ("space", "toggle_selection", "Toggle select"),
+        ("ctrl+a", "select_all", "Select all"),
     ]
 
     def __init__(self) -> None:
@@ -109,6 +110,16 @@ class CreatePresetScreen(Screen):
                 return
             self._selected.add(track_id)
             table.update_cell(str(track_id), self._check_col_key, "✓")
+        self._update_count()
+
+    def action_select_all(self) -> None:
+        db = self.app.db  # type: ignore[attr-defined]
+        table = self.query_one("#track-table", DataTable)
+        for r in self._rows:
+            tid = r["id"]
+            if tid not in self._selected and db.get_analysis(tid):
+                self._selected.add(tid)
+                table.update_cell(str(tid), self._check_col_key, "✓")
         self._update_count()
 
     @on(Button.Pressed, "#clear-btn")
