@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mixadvice-preset-builder"
+version = "0.1.0"
+description = "Build MixAdvice genre presets from real audio files"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=0.61",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "soundfile>=0.12",
+    "mutagen>=1.47",
+    "pyacoustid>=1.3",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = ["ruff"]
+
+[project.scripts]
+preset-builder = "preset_builder.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["preset_builder"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

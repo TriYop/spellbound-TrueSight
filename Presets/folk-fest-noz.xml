@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Folk (Fest Noz)"
+                 description="Vocal-range mids forward, acoustic instruments, natural stereo">
+    <BandRmsDb       sub="-32" lows="-28" lomid="-24" mids="-22" himid="-24" highs="-28" air="-34"/>
+    <BandMinCorr     sub="0.85" lows="0.82" lomid="0.78" mids="0.72" himid="0.65" highs="0.55" air="0.45"/>
+    <BandTransientDb sub="6"   lows="12"  lomid="16"  mids="18"  himid="18"  highs="16"  air="12"/>
+    <Overall         rmsDb="-24" minCorr="0.72"/>
+</MixAdvicePreset>

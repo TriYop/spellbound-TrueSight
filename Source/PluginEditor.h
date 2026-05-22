@@ -2,7 +2,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "Analysis/AnalysisResult.h"
-#include "Presets/PresetData.h"
+#include "Presets/PresetData.h"   // for PresetData& in draw signatures
 
 class MixAdviceAudioProcessorEditor final
     : public juce::AudioProcessorEditor,

@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Analysis/AnalyserEngine.h"
+#include "Presets/PresetManager.h"
 
 class MixAdviceAudioProcessorEditor;
 
@@ -40,11 +41,14 @@ public:
         return isPlaying_.load (std::memory_order_relaxed);
     }
 
+    const PresetManager& getPresetManager() const noexcept { return presetManager_; }
+
 private:
-    int  currentPresetIndex { 0 };
-    bool wasPlaying_        { false };
-    std::atomic<bool> isPlaying_ { false };
-    AnalyserEngine analyser_;
+    PresetManager      presetManager_;
+    int                currentPresetIndex { 0 };
+    bool               wasPlaying_        { false };
+    std::atomic<bool>  isPlaying_         { false };
+    AnalyserEngine     analyser_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixAdviceAudioProcessor)
 };

@@ -24,6 +24,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(clap-juce-extensions)
 
+file(GLOB MIXADVICE_PRESET_FILES "Presets/*.xml")
+juce_add_binary_data(MixAdviceBuiltInPresets SOURCES ${MIXADVICE_PRESET_FILES})
+
 set(MIXADVICE_FORMATS VST3 Standalone)
 if(APPLE)
     list(APPEND MIXADVICE_FORMATS AU)
@@ -48,6 +51,7 @@ target_sources(MixAdvice PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/Analysis/AnalyserEngine.cpp
+    Source/Presets/PresetManager.cpp
 )
 
 target_compile_definitions(MixAdvice PUBLIC
@@ -62,6 +66,7 @@ target_compile_features(MixAdvice PUBLIC cxx_std_20)
 
 target_link_libraries(MixAdvice
     PRIVATE
+        MixAdviceBuiltInPresets
         juce::juce_audio_utils
         juce::juce_audio_plugin_client
         juce::juce_dsp
@@ -101,6 +106,10 @@ install(FILES      "${_ARTS}/CLAP/MixAdvice.clap"
 
 install(PROGRAMS   "${_ARTS}/Standalone/MixAdvice"
         DESTINATION bin
+        COMPONENT   Runtime)
+
+install(FILES      ${MIXADVICE_PRESET_FILES}
+        DESTINATION Presets
         COMPONENT   Runtime)
 
 install(PROGRAMS   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.sh"

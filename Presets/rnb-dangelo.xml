@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="R&amp;B (D'Angelo)"
+                 description="Warm sub and lows, smooth mids, laid-back feel, moderately loud">
+    <BandRmsDb       sub="-20" lows="-18" lomid="-22" mids="-22" himid="-26" highs="-30" air="-36"/>
+    <BandMinCorr     sub="0.88" lows="0.82" lomid="0.68" mids="0.62" himid="0.52" highs="0.42" air="0.32"/>
+    <BandTransientDb sub="8"   lows="12"  lomid="10"  mids="12"  himid="14"  highs="12"  air="8"/>
+    <Overall         rmsDb="-16" minCorr="0.60"/>
+</MixAdvicePreset>

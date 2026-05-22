@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "Analysis/BandConfig.h"
+#include "Presets/PresetManager.h"
 #include <algorithm>
 #include <cmath>
 
@@ -36,8 +37,9 @@ MixAdviceAudioProcessorEditor::MixAdviceAudioProcessorEditor (MixAdviceAudioProc
     : AudioProcessorEditor (&p), processorRef (p)
 {
     // Populate ComboBox with preset names (JUCE IDs are 1-based)
-    for (int i = 0; i < Presets::count; ++i)
-        presetSelector_.addItem (Presets::data[i].name, i + 1);
+    const auto& mgr = processorRef.getPresetManager();
+    for (int i = 0; i < mgr.getNumPresets(); ++i)
+        presetSelector_.addItem (mgr.getPreset (i).name, i + 1);
 
     presetSelector_.setSelectedId (processorRef.getCurrentProgram() + 1,
                                    juce::dontSendNotification);
@@ -127,7 +129,7 @@ void MixAdviceAudioProcessorEditor::paint (juce::Graphics& g)
         {
             g.setFont   (juce::FontOptions (10.5f));
             g.setColour (kDimText);
-            g.drawText  (Presets::data[processorRef.getCurrentProgram()].description,
+            g.drawText  (processorRef.getPresetManager().getPreset (processorRef.getCurrentProgram()).description,
                          descX, 0, descRight - descX, kHeaderH,
                          juce::Justification::centredLeft, true);
         }
@@ -175,7 +177,7 @@ void MixAdviceAudioProcessorEditor::paint (juce::Graphics& g)
     const auto dbArea        = scaleArea.withBottom (transientRow.getY());
 
     const auto snap    = processorRef.getAnalysisResult().read();
-    const auto& preset = Presets::data[processorRef.getCurrentProgram()];
+    const auto& preset = processorRef.getPresetManager().getPreset (processorRef.getCurrentProgram());
 
     drawDbScale         (g, dbArea);
     drawBandBars        (g, barArea, snap, preset);
@@ -666,7 +668,7 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
 void MixAdviceAudioProcessorEditor::exportAdvice()
 {
     const auto snap    = processorRef.getAnalysisResult().read();
-    const auto& preset = Presets::data[processorRef.getCurrentProgram()];
+    const auto& preset = processorRef.getPresetManager().getPreset (processorRef.getCurrentProgram());
     const juce::String md = generateMarkdown (snap, preset);
 
     const juce::String defaultName = juce::String ("MixAdvice_")

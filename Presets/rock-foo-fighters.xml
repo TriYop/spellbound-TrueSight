@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Rock (Foo Fighters)"
+                 description="Guitars dominate lo-mid and hi-mid, punchy lows, limited sub">
+    <BandRmsDb       sub="-30" lows="-22" lomid="-18" mids="-18" himid="-20" highs="-24" air="-30"/>
+    <BandMinCorr     sub="0.78" lows="0.70" lomid="0.60" mids="0.55" himid="0.48" highs="0.38" air="0.28"/>
+    <BandTransientDb sub="6"   lows="14"  lomid="16"  mids="18"  himid="20"  highs="18"  air="14"/>
+    <Overall         rmsDb="-18" minCorr="0.52"/>
+</MixAdvicePreset>

@@ -1,6 +1,5 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "Presets/PresetData.h"
 
 MixAdviceAudioProcessor::MixAdviceAudioProcessor()
     : AudioProcessor (BusesProperties()
@@ -16,18 +15,18 @@ bool MixAdviceAudioProcessor::producesMidi() const { return false; }
 bool MixAdviceAudioProcessor::isMidiEffect() const { return false; }
 double MixAdviceAudioProcessor::getTailLengthSeconds() const { return 0.0; }
 
-int MixAdviceAudioProcessor::getNumPrograms()      { return Presets::count; }
-int MixAdviceAudioProcessor::getCurrentProgram()   { return currentPresetIndex; }
+int MixAdviceAudioProcessor::getNumPrograms()    { return presetManager_.getNumPresets(); }
+int MixAdviceAudioProcessor::getCurrentProgram() { return currentPresetIndex; }
 
 void MixAdviceAudioProcessor::setCurrentProgram (int index)
 {
-    currentPresetIndex = juce::jlimit (0, Presets::count - 1, index);
+    currentPresetIndex = juce::jlimit (0, presetManager_.getNumPresets() - 1, index);
 }
 
 const juce::String MixAdviceAudioProcessor::getProgramName (int index)
 {
-    if (index >= 0 && index < Presets::count)
-        return Presets::data[index].name;
+    if (index >= 0 && index < presetManager_.getNumPresets())
+        return presetManager_.getPreset (index).name;
     return {};
 }
 
@@ -100,14 +99,19 @@ juce::AudioProcessorEditor* MixAdviceAudioProcessor::createEditor()
 
 void MixAdviceAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    // TODO: serialise preset index and user settings
-    juce::ignoreUnused (destData);
+    juce::XmlElement state ("MixAdviceState");
+    state.setAttribute ("presetName", presetManager_.getPreset (currentPresetIndex).name);
+    copyXmlToBinary (state, destData);
 }
 
 void MixAdviceAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // TODO: deserialise state
-    juce::ignoreUnused (data, sizeInBytes);
+    if (auto state = getXmlFromBinary (data, sizeInBytes))
+    {
+        const auto name  = state->getStringAttribute ("presetName");
+        const int  index = presetManager_.findByName (name);
+        currentPresetIndex = (index >= 0) ? index : 0;
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
