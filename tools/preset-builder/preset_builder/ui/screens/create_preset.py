@@ -51,6 +51,10 @@ class CreatePresetScreen(Screen):
         (self._check_col_key, *_) = table.add_columns("", "Artist", "Title", "Genre", "Mood", "Analyzed")
         self._load_tracks()
 
+    def on_screen_resume(self) -> None:
+        self._selected.clear()
+        self._load_tracks(self.query_one("#filter-input", Input).value)
+
     def _load_tracks(self, filter_text: str = "") -> None:
         db = self.app.db  # type: ignore[attr-defined]
         all_rows = db.list_tracks()
