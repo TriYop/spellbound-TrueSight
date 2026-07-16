@@ -51,6 +51,8 @@ target_sources(MixAdvice PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/Analysis/AnalyserEngine.cpp
+    Source/Analysis/LoudnessAnalyser.cpp
+    Source/Analysis/ResonanceDetector.cpp
     Source/Presets/PresetManager.cpp
 )
 

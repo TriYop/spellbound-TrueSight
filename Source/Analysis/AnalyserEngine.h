@@ -4,6 +4,9 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "BandConfig.h"
 #include "AnalysisResult.h"
+#include "QuantileHistogram.h"
+#include "LoudnessAnalyser.h"
+#include "ResonanceDetector.h"
 
 // Splits the stereo input into 7 frequency bands using cascaded Linkwitz-Riley
 // crossovers, then computes per-band RMS and L/R Pearson correlation.
@@ -65,6 +68,26 @@ private:
     std::array<double, BandConfig::numBands> intBandSumR2_ {};
     uint64_t intBandBlockCount_ { 0 };
 
+    // Per-band P10/P50/P95 of per-block RMS (dB), integrated since last resetPeaks()
+    std::array<QuantileHistogram, BandConfig::numBands> bandRmsHistograms_;
+
+    // EBU R128 Loudness Range, measured on the same raw broadband signal used
+    // for overall RMS/correlation.
+    LoudnessAnalyser loudness_;
+
+    double   sampleRate_        { 44100.0 };
+    uint64_t samplesSinceReset_ { 0 };
+
+    // Pre-allocated mono downmix scratch buffer for the resonance detector's audio-thread push.
+    juce::AudioBuffer<float> monoScratch_;
+
+    // Background-thread spectral resonance detector. Declared after `result` (above) so
+    // it is destroyed *before* `result` (C++ destroys members in reverse declaration
+    // order) — it holds a reference to `result` and must stop before that reference
+    // becomes dangling.
+    ResonanceDetector resonance_ { result };
+
 public:
     void resetPeaks();
+    void suspend();   // stop the resonance-detector worker thread (PluginProcessor::releaseResources())
 };

@@ -23,7 +23,12 @@ static constexpr int kLabelH     = 20;   // band-name label row
 static constexpr int kBarGap    = 4;     // gap between L and R bars within a slot
 static constexpr int kOverallW  = 100;   // overall energy meter panel width
 static constexpr int kPanelGap  = 8;     // gap between band area and overall panel
-static constexpr int kAdviceH   = 100;   // mastering advice panel at bottom
+static constexpr int kAdviceH   = 156;   // mastering advice panel at bottom (EQ/comp + mixbus/loudness)
+static constexpr int kResonanceH = 46;   // resonance-cuts strip, above the advice panel
+
+// Percentile stats need a few seconds of audio before they're meaningful — until
+// then, advice reference levels fall back to the existing avg/peak blend.
+static constexpr float kPercentileWarmupSec = 2.0f;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 static float dbToNorm (float db) noexcept
@@ -66,7 +71,7 @@ MixAdviceAudioProcessorEditor::MixAdviceAudioProcessorEditor (MixAdviceAudioProc
     exportButton_.setEnabled (false);
     addAndMakeVisible (exportButton_);
 
-    setSize (900, 580);
+    setSize (900, 660);
     startTimerHz (30);
 }
 
@@ -164,8 +169,9 @@ void MixAdviceAudioProcessorEditor::paint (juce::Graphics& g)
     }
 
     // ── Layout zones ──────────────────────────────────────────────────────────
-    const auto adviceArea   = bounds.withTop (bounds.getBottom() - kAdviceH);
-    const auto workArea     = bounds.withTrimmedTop (kHeaderH).withBottom (adviceArea.getY());
+    const auto adviceArea    = bounds.withTop (bounds.getBottom() - kAdviceH);
+    const auto resonanceArea = bounds.withTop (adviceArea.getY() - kResonanceH).withHeight (kResonanceH);
+    const auto workArea      = bounds.withTrimmedTop (kHeaderH).withBottom (resonanceArea.getY());
     const auto overallPanel = workArea.withLeft (workArea.getRight() - kOverallW);
     const auto leftOfPanel  = workArea.withRight (overallPanel.getX() - kPanelGap);
     const auto scaleArea    = leftOfPanel.withWidth (kScaleW);
@@ -184,6 +190,7 @@ void MixAdviceAudioProcessorEditor::paint (juce::Graphics& g)
     drawTransientStrip  (g, transientRow, snap, preset);
     drawCorrStrip       (g, corrRow, snap, preset);
     drawOverallMeter    (g, overallPanel, snap, preset);
+    drawResonancePanel  (g, resonanceArea, snap);
     drawAdvicePanel     (g, adviceArea, snap, preset);
 
     // ── Band name labels ──────────────────────────────────────────────────────
@@ -459,6 +466,66 @@ void MixAdviceAudioProcessorEditor::drawOverallMeter (juce::Graphics& g,
     drawMonoRow (intRow, snap.integratedCorrelation,  "Int", true,  preset.overallMinCorr);
 }
 
+// ── Resonance-cut suggestions ─────────────────────────────────────────────────
+void MixAdviceAudioProcessorEditor::drawResonancePanel (juce::Graphics& g,
+                                                         juce::Rectangle<int> area,
+                                                         const AnalysisResult::Snapshot& snap) const
+{
+    g.setColour (juce::Colour (0xff17172a));
+    g.fillRect  (area);
+    g.setColour (kGridLine);
+    g.drawHorizontalLine (area.getY(), 0.f, static_cast<float> (getWidth()));
+
+    // Mirror the meter column layout so tags line up under the band bars
+    const auto overallPanel = area.withLeft (area.getRight() - kOverallW);
+    const auto leftOfPanel  = area.withRight (overallPanel.getX() - kPanelGap);
+    const auto scaleCol     = leftOfPanel.withWidth (kScaleW);
+    const auto plotArea     = leftOfPanel.withTrimmedLeft (kScaleW);
+
+    g.setFont   (juce::FontOptions (9.0f));
+    g.setColour (kDimText);
+    g.drawText  ("Resonance", scaleCol.getX(), area.getY(), scaleCol.getWidth(), area.getHeight(),
+                 juce::Justification::centredRight);
+
+    const int count = std::clamp (snap.resonanceCount, 0, AnalysisResult::maxResonances);
+
+    if (count == 0)
+    {
+        g.setFont   (juce::FontOptions (10.f));
+        g.setColour (kDimText);
+        g.drawText  ("No resonances detected", plotArea, juce::Justification::centred);
+        return;
+    }
+
+    const float slotW = static_cast<float> (plotArea.getWidth()) / AnalysisResult::maxResonances;
+
+    for (int i = 0; i < count; ++i)
+    {
+        const float freqHz = snap.resonanceFreqHz[static_cast<size_t> (i)];
+        const float q      = snap.resonanceQ[static_cast<size_t> (i)];
+        const float gainDb = snap.resonanceGainDb[static_cast<size_t> (i)];
+
+        const juce::String freqStr = freqHz >= 1000.f
+            ? juce::String (freqHz / 1000.f, 1) + " kHz"
+            : juce::String (static_cast<int> (freqHz)) + " Hz";
+
+        juce::Rectangle<int> slot (plotArea.getX() + static_cast<int> (static_cast<float> (i) * slotW),
+                                    area.getY(), static_cast<int> (slotW), area.getHeight());
+
+        g.setColour (juce::Colour (0xff23233c));
+        g.fillRoundedRectangle (slot.reduced (2, 4).toFloat(), 3.f);
+
+        g.setFont   (juce::FontOptions (9.5f).withStyle ("Bold"));
+        g.setColour (kRefLine);
+        g.drawText  (freqStr, slot.withHeight (18).withY (slot.getY() + 5), juce::Justification::centred);
+
+        g.setFont   (juce::FontOptions (8.5f));
+        g.setColour (kLabelText);
+        g.drawText  ("Q " + juce::String (q, 1) + "  " + juce::String (gainDb, 1) + " dB",
+                     slot.withTop (slot.getY() + 23).withHeight (16), juce::Justification::centred);
+    }
+}
+
 // ── Mastering advice panel ────────────────────────────────────────────────────
 void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
                                                       juce::Rectangle<int> area,
@@ -528,10 +595,15 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
         const float innerX = slotX + 2.f;
         const float innerW = slotW - 4.f;
 
-        // Characteristic level = mean of long-term average and peak hold
+        // Characteristic level: distribution-aware percentile blend (P50/P95) once
+        // enough data has accumulated, matching Codex's advice.cpp reference-level
+        // formula; falls back to the avg/peak blend during the warm-up window.
+        const bool  pctReady = snap.secondsSinceReset >= kPercentileWarmupSec;
         const float avgDb  = (snap.avgRmsDbL[i]   + snap.avgRmsDbR[i])   * 0.5f;
         const float maxDb  = (snap.peakRmsDbL[i]  + snap.peakRmsDbR[i])  * 0.5f;
-        const float refDb  = (avgDb + maxDb) * 0.5f;
+        const float refDb  = pctReady
+            ? (snap.p50RmsDb[i] + snap.p95RmsDb[i]) * 0.5f
+            : (avgDb + maxDb) * 0.5f;
 
         // ── Mastering EQ ──────────────────────────────────────────────────────
         float eqGain = std::clamp (preset.bandRmsDb[i] - refDb, -12.f, 12.f);
@@ -662,6 +734,23 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
     drawRow ("Attack",  juce::String ((int) mbAttack) + " ms");
     drawRow ("Release", juce::String ((int) mbRelease) + " ms");
     drawRow ("Makeup",  "+" + juce::String (makeup, 1) + " dB");
+
+    // ── Loudness / suggested limiter target ───────────────────────────────────
+    // LRA shifts the target ±3 LU around a 12 LU neutral point — matches Codex's
+    // deriveAdvice() limiter-target formula.
+    ry += 2;
+    g.setFont   (juce::FontOptions (9.5f).withStyle ("Bold"));
+    g.setColour (kLabelText);
+    g.drawText  ("Loudness", px, ry, pw, rh, juce::Justification::centred);
+    ry += rh + 2;
+
+    const bool  lraReady     = snap.lraLu > 0.f;
+    const float lraOffset    = lraReady ? std::clamp ((snap.lraLu - 12.f) * 0.30f, -3.f, 3.f) : 0.f;
+    const float limiterTarget = preset.overallRmsDb + 3.f + lraOffset;
+
+    drawRow ("LRA",     lraReady ? juce::String (snap.lraLu, 1) + " LU" : juce::String ("—"));
+    drawRow ("Lim Tgt", juce::String (limiterTarget, 1) + " LUFS");
+    drawRow ("Ceiling", "-1.0 dBTP");
 }
 
 // ── Markdown export ───────────────────────────────────────────────────────────
@@ -714,11 +803,15 @@ juce::String MixAdviceAudioProcessorEditor::generateMarkdown (
     md << "| Band | Range | Frequency | Type | Gain | Q |\n";
     md << "|------|-------|-----------|------|------|---|\n";
 
+    const bool pctReady = snap.secondsSinceReset >= kPercentileWarmupSec;
+
     for (size_t i = 0; i < static_cast<size_t> (BandConfig::numBands); ++i)
     {
         const float avgDb = (snap.avgRmsDbL[i]  + snap.avgRmsDbR[i])  * 0.5f;
         const float maxDb = (snap.peakRmsDbL[i] + snap.peakRmsDbR[i]) * 0.5f;
-        const float refDb = (avgDb + maxDb) * 0.5f;
+        const float refDb = pctReady
+            ? (snap.p50RmsDb[i] + snap.p95RmsDb[i]) * 0.5f
+            : (avgDb + maxDb) * 0.5f;
 
         float eqGain = std::clamp (preset.bandRmsDb[i] - refDb, -12.f, 12.f);
         if (std::abs (eqGain) < 0.5f) eqGain = 0.f;
@@ -764,7 +857,9 @@ juce::String MixAdviceAudioProcessorEditor::generateMarkdown (
     {
         const float avgDb = (snap.avgRmsDbL[i]  + snap.avgRmsDbR[i])  * 0.5f;
         const float maxDb = (snap.peakRmsDbL[i] + snap.peakRmsDbR[i]) * 0.5f;
-        const float refDb = (avgDb + maxDb) * 0.5f;
+        const float refDb = pctReady
+            ? (snap.p50RmsDb[i] + snap.p95RmsDb[i]) * 0.5f
+            : (avgDb + maxDb) * 0.5f;
 
         const float excess  = std::max (0.f, refDb - preset.bandRmsDb[i]);
         const float ratio   = std::clamp (1.f + excess * 0.25f, 1.1f, 8.f);
@@ -805,6 +900,48 @@ juce::String MixAdviceAudioProcessorEditor::generateMarkdown (
     md << "| Attack | 15 ms |\n";
     md << "| Release | " << juce::String ((int) mbRelease) << " ms |\n";
     md << "| Makeup Gain | +" << juce::String (makeup, 1) << " dB |\n";
+
+    md << "\n---\n\n";
+
+    // ── Loudness / suggested limiter target ───────────────────────────────────
+    md << "## Loudness / Limiter\n\n";
+
+    const bool  lraReady      = snap.lraLu > 0.f;
+    const float lraOffset     = lraReady ? std::clamp ((snap.lraLu - 12.f) * 0.30f, -3.f, 3.f) : 0.f;
+    const float limiterTarget = preset.overallRmsDb + 3.f + lraOffset;
+
+    md << "| Parameter | Value |\n";
+    md << "|-----------|-------|\n";
+    md << "| LRA | " << (lraReady ? juce::String (snap.lraLu, 1) + " LU" : juce::String ("—")) << " |\n";
+    md << "| Suggested Limiter Target | " << juce::String (limiterTarget, 1) << " LUFS |\n";
+    md << "| Ceiling | -1.0 dBTP |\n";
+
+    md << "\n---\n\n";
+
+    // ── Resonance cuts ─────────────────────────────────────────────────────────
+    md << "## Resonance Cuts\n\n";
+
+    const int resonanceCount = std::clamp (snap.resonanceCount, 0, AnalysisResult::maxResonances);
+    if (resonanceCount == 0)
+    {
+        md << "No resonances detected.\n";
+    }
+    else
+    {
+        md << "| Frequency | Q | Gain |\n";
+        md << "|-----------|---|------|\n";
+        for (int i = 0; i < resonanceCount; ++i)
+        {
+            const float freqHz = snap.resonanceFreqHz[static_cast<size_t> (i)];
+            const float q      = snap.resonanceQ[static_cast<size_t> (i)];
+            const float gainDb = snap.resonanceGainDb[static_cast<size_t> (i)];
+            const juce::String freqStr = freqHz >= 1000.f
+                ? juce::String (freqHz / 1000.f, 1) + " kHz"
+                : juce::String ((int) freqHz) + " Hz";
+            md << "| " << freqStr << " | " << juce::String (q, 1)
+               << " | " << juce::String (gainDb, 1) << " dB |\n";
+        }
+    }
 
     md << "\n---\n\n";
     md << "*Generated by MixAdvice*\n";

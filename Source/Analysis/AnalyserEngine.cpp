@@ -22,11 +22,16 @@ void AnalyserEngine::prepare (const juce::dsp::ProcessSpec& spec)
 
     remainderBuf_.setSize (nch, maxBlock);
     bandBuf_.setSize      (nch, maxBlock);
+    monoScratch_.setSize  (1, maxBlock);
 
     const float blocksPerSec = static_cast<float> (sr) / static_cast<float> (maxBlock);
     rmsAlpha_   = std::exp (-1.f / (0.10f * blocksPerSec));   // 100 ms
     corrAlpha_  = std::exp (-1.f / (0.30f * blocksPerSec));   // 300 ms
     crestAlpha_ = std::exp (-1.f / (0.50f * blocksPerSec));   // 500 ms
+
+    sampleRate_ = sr;
+    loudness_.prepare (sr);
+    resonance_.prepare (sr);
 
     reset();
 }
@@ -44,6 +49,10 @@ void AnalyserEngine::reset()
     intBandSumL2_.fill (0.0);
     intBandSumR2_.fill (0.0);
     intBandBlockCount_ = 0;
+
+    for (auto& h : bandRmsHistograms_) h.reset();
+    loudness_.reset();
+    samplesSinceReset_ = 0;
 }
 
 void AnalyserEngine::resetPeaks()
@@ -59,11 +68,27 @@ void AnalyserEngine::resetPeaks()
     intBandSumR2_.fill (0.0);
     intBandBlockCount_ = 0;
 
+    for (auto& h : bandRmsHistograms_) h.reset();
+    loudness_.reset();
+    resonance_.requestReset();
+    samplesSinceReset_ = 0;
+
     for (auto& a : result.peakRmsDbL) a.store (-100.f, std::memory_order_relaxed);
     for (auto& a : result.peakRmsDbR) a.store (-100.f, std::memory_order_relaxed);
     result.peakOverallDbL       .store (-100.f, std::memory_order_relaxed);
     result.peakOverallDbR       .store (-100.f, std::memory_order_relaxed);
     result.integratedCorrelation.store (1.f,    std::memory_order_relaxed);
+    result.secondsSinceReset    .store (0.f,    std::memory_order_relaxed);
+    result.lraLu                .store (0.f,    std::memory_order_relaxed);
+
+    for (auto& a : result.p10RmsDb) a.store (-100.f, std::memory_order_relaxed);
+    for (auto& a : result.p50RmsDb) a.store (-100.f, std::memory_order_relaxed);
+    for (auto& a : result.p95RmsDb) a.store (-100.f, std::memory_order_relaxed);
+}
+
+void AnalyserEngine::suspend()
+{
+    resonance_.suspend();
 }
 
 void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
@@ -120,6 +145,14 @@ void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
             result.avgRmsDbR[i].store (toDb (static_cast<float> (std::sqrt (intBandSumR2_[i] / n))),
                                        std::memory_order_relaxed);
         }
+
+        // Distribution-aware percentile stats of per-block RMS, integrated since resetPeaks().
+        // Matches Codex's blend of L/R block RMS in dB, per band.
+        auto& hist = bandRmsHistograms_[i];
+        hist.addSample ((toDb (rmsL) + toDb (rmsR)) * 0.5f);
+        result.p10RmsDb[i].store (hist.percentile (0.10f), std::memory_order_relaxed);
+        result.p50RmsDb[i].store (hist.percentile (0.50f), std::memory_order_relaxed);
+        result.p95RmsDb[i].store (hist.percentile (0.95f), std::memory_order_relaxed);
     };
 
     // Overall broadband level and mono compatibility — measured on the raw input before the filterbank
@@ -158,6 +191,16 @@ void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
         result.peakOverallDbR       .store (toDb (peakOverallLinR_),  std::memory_order_relaxed);
         result.overallCorrelation   .store (smoothOverallCorr_,       std::memory_order_relaxed);
         result.integratedCorrelation.store (intCorr,                  std::memory_order_relaxed);
+
+        loudness_.processBlock (L, R, nSamples);
+        result.lraLu.store (loudness_.getLraLu(), std::memory_order_relaxed);
+
+        // Mono downmix, handed off to the background resonance-detector thread via a
+        // lock-free FIFO push (never blocks/allocates on this, the audio, thread).
+        float* mono = monoScratch_.getWritePointer (0);
+        for (int i = 0; i < nSamples; ++i)
+            mono[i] = 0.5f * (L[i] + R[i]);
+        resonance_.pushSamples (mono, nSamples);
     }
 
     // Copy input into the running remainder buffer
@@ -187,6 +230,11 @@ void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
                remainderBuf_.getReadPointer (1));
 
     ++intBandBlockCount_;
+
+    samplesSinceReset_ += static_cast<uint64_t> (nSamples);
+    result.secondsSinceReset.store (
+        static_cast<float> (static_cast<double> (samplesSinceReset_) / sampleRate_),
+        std::memory_order_relaxed);
 }
 
 float AnalyserEngine::blockRmsLinear (const float* data, int n) noexcept

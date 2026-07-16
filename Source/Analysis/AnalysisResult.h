@@ -38,6 +38,27 @@ struct AnalysisResult
     std::array<std::atomic<float>, numBands> transientDbL;
     std::array<std::atomic<float>, numBands> transientDbR;
 
+    // Per-band percentiles of per-block RMS (dBFS), integrated since last resetPeaks().
+    // Used as a distribution-aware alternative to the avg/peak blend for advice reference levels.
+    std::array<std::atomic<float>, numBands> p10RmsDb;
+    std::array<std::atomic<float>, numBands> p50RmsDb;
+    std::array<std::atomic<float>, numBands> p95RmsDb;
+
+    // Elapsed playback time since last resetPeaks() (seconds) — gates percentile-based advice
+    // until enough data has accumulated to be meaningful.
+    std::atomic<float> secondsSinceReset { 0.f };
+
+    // EBU R128 Loudness Range (LU), integrated since last resetPeaks(). 0 = not enough data yet.
+    std::atomic<float> lraLu { 0.f };
+
+    // Detected spectral resonance peaks (cut suggestions), written by the background
+    // ResonanceDetector thread. gainDb is always <= 0 (a suggested notch, never a boost).
+    static constexpr int maxResonances = 8;
+    std::array<std::atomic<float>, maxResonances> resonanceFreqHz;
+    std::array<std::atomic<float>, maxResonances> resonanceQ;
+    std::array<std::atomic<float>, maxResonances> resonanceGainDb;
+    std::atomic<int> resonanceCount { 0 };
+
     AnalysisResult()
     {
         for (auto& a : rmsDbL)       a.store (-100.f, std::memory_order_relaxed);
@@ -49,6 +70,12 @@ struct AnalysisResult
         for (auto& a : transientDbR) a.store (0.f,    std::memory_order_relaxed);
         for (auto& a : avgRmsDbL)    a.store (-100.f, std::memory_order_relaxed);
         for (auto& a : avgRmsDbR)    a.store (-100.f, std::memory_order_relaxed);
+        for (auto& a : p10RmsDb)     a.store (-100.f, std::memory_order_relaxed);
+        for (auto& a : p50RmsDb)     a.store (-100.f, std::memory_order_relaxed);
+        for (auto& a : p95RmsDb)     a.store (-100.f, std::memory_order_relaxed);
+        for (auto& a : resonanceFreqHz) a.store (0.f, std::memory_order_relaxed);
+        for (auto& a : resonanceQ)      a.store (1.f, std::memory_order_relaxed);
+        for (auto& a : resonanceGainDb) a.store (0.f, std::memory_order_relaxed);
     }
 
     AnalysisResult (const AnalysisResult&) = delete;
@@ -65,6 +92,9 @@ struct AnalysisResult
         std::array<float, numBands> transientDbR {};
         std::array<float, numBands> avgRmsDbL    {};
         std::array<float, numBands> avgRmsDbR    {};
+        std::array<float, numBands> p10RmsDb     {};
+        std::array<float, numBands> p50RmsDb     {};
+        std::array<float, numBands> p95RmsDb     {};
 
         float overallRmsDbL       { -100.f };
         float overallRmsDbR       { -100.f };
@@ -72,6 +102,13 @@ struct AnalysisResult
         float peakOverallDbR      { -100.f };
         float overallCorrelation    { 1.f };
         float integratedCorrelation { 1.f };
+        float secondsSinceReset     { 0.f };
+        float lraLu                 { 0.f };
+
+        std::array<float, maxResonances> resonanceFreqHz {};
+        std::array<float, maxResonances> resonanceQ      {};
+        std::array<float, maxResonances> resonanceGainDb {};
+        int   resonanceCount { 0 };
     };
 
     Snapshot read() const noexcept
@@ -88,6 +125,9 @@ struct AnalysisResult
             s.transientDbR[i] = transientDbR[i].load (std::memory_order_relaxed);
             s.avgRmsDbL[i]    = avgRmsDbL[i].load    (std::memory_order_relaxed);
             s.avgRmsDbR[i]    = avgRmsDbR[i].load    (std::memory_order_relaxed);
+            s.p10RmsDb[i]     = p10RmsDb[i].load     (std::memory_order_relaxed);
+            s.p50RmsDb[i]     = p50RmsDb[i].load     (std::memory_order_relaxed);
+            s.p95RmsDb[i]     = p95RmsDb[i].load     (std::memory_order_relaxed);
         }
         s.overallRmsDbL          = overallRmsDbL         .load (std::memory_order_relaxed);
         s.overallRmsDbR          = overallRmsDbR         .load (std::memory_order_relaxed);
@@ -95,6 +135,16 @@ struct AnalysisResult
         s.peakOverallDbR         = peakOverallDbR        .load (std::memory_order_relaxed);
         s.overallCorrelation     = overallCorrelation    .load (std::memory_order_relaxed);
         s.integratedCorrelation  = integratedCorrelation .load (std::memory_order_relaxed);
+        s.secondsSinceReset      = secondsSinceReset     .load (std::memory_order_relaxed);
+        s.lraLu                  = lraLu                 .load (std::memory_order_relaxed);
+
+        for (int i = 0; i < maxResonances; ++i)
+        {
+            s.resonanceFreqHz[static_cast<size_t> (i)] = resonanceFreqHz[static_cast<size_t> (i)].load (std::memory_order_relaxed);
+            s.resonanceQ[static_cast<size_t> (i)]      = resonanceQ[static_cast<size_t> (i)].load      (std::memory_order_relaxed);
+            s.resonanceGainDb[static_cast<size_t> (i)] = resonanceGainDb[static_cast<size_t> (i)].load (std::memory_order_relaxed);
+        }
+        s.resonanceCount = resonanceCount.load (std::memory_order_relaxed);
         return s;
     }
 };

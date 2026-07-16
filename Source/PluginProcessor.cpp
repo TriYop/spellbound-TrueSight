@@ -43,7 +43,11 @@ void MixAdviceAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     wasPlaying_ = false;
 }
 
-void MixAdviceAudioProcessor::releaseResources() {}
+void MixAdviceAudioProcessor::releaseResources()
+{
+    // Stop the resonance-detector background thread; prepareToPlay() restarts it.
+    analyser_.suspend();
+}
 
 bool MixAdviceAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {

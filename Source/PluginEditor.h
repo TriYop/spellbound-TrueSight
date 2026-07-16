@@ -30,6 +30,8 @@ private:
     void drawAdvicePanel    (juce::Graphics&, juce::Rectangle<int> area,
                              const AnalysisResult::Snapshot&,
                              const PresetData&) const;
+    void drawResonancePanel (juce::Graphics&, juce::Rectangle<int> area,
+                             const AnalysisResult::Snapshot&) const;
 
     void exportAdvice();
     static juce::String generateMarkdown (const AnalysisResult::Snapshot&,
