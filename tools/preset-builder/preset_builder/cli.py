@@ -32,13 +32,18 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    if args.ingest:
+        print(
+            "Ingest is currently disabled in this tool: its analysis hasn't been\n"
+            "updated yet to match Codex/MasterTweak's preset builder. Use Codex's\n"
+            "Qt6 preset builder to ingest tracks and build/export presets for now\n"
+            "(see tools/preset-builder/README.md).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     db = Database(args.db)
     db.open()
-
-    if args.ingest:
-        _batch_ingest(args.ingest, db, use_network=not args.no_network, force=args.force)
-        db.close()
-        return
 
     # Launch TUI
     from .ui.app import PresetBuilderApp

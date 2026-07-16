@@ -2,6 +2,25 @@
 
 Standalone TUI tool for building genre presets from real audio files.
 
+## Status: Ingest and Create Preset are frozen
+
+The sibling project Codex/MasterTweak (`AudioPlugins/Codex`) has its own Qt6/C++
+preset builder that has since surpassed this tool — better track-similarity
+distance metric, auto-discovery clustering, and TagLib/AcoustID tag enrichment.
+Rather than let this tool and Codex's drift further apart, **Ingest and Create
+Preset (export) are disabled here** (both in the TUI and via `--ingest`) until
+this tool's analysis is backported to match Codex's improvements (percentile
+stats, EBU R128 Loudness Range, resonance detection — see the MixAdvice plugin's
+`Source/Analysis/` for the reference implementation once that lands).
+
+**Use Codex's Qt6 preset builder to ingest tracks and build/export new presets
+for now.** Both tools write to the same `~/.config/MixAdvice/Presets/` directory
+and read/write the identical `MixAdvicePreset` XML schema, so presets built with
+Codex's tool work here (and in the MixAdvice plugin) without conversion.
+
+**Browse & tag tracks still works read-only** against the existing local
+database, for inspecting previously-ingested data.
+
 ## What it does
 
 1. **Ingest** audio files (MP3, FLAC, WAV, OGG, M4A…) — extracts per-band RMS, L/R correlation, and crest factor matching the MixAdvice plugin's 7-band analysis.
@@ -28,11 +47,9 @@ sudo apt install libchromaprint-tools   # Ubuntu/Debian
 uv run preset-builder
 ```
 
-### Batch ingest (no UI)
+### Batch ingest (no UI) — currently disabled, see "Status" above
 ```bash
-uv run preset-builder --ingest /path/to/music/folder
-uv run preset-builder --ingest track.flac --no-network   # skip AcoustID lookup
-uv run preset-builder --ingest /music --force            # re-analyze everything
+uv run preset-builder --ingest /path/to/music/folder   # prints a deprecation notice and exits
 ```
 
 ### Custom DB location

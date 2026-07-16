@@ -12,20 +12,24 @@ class MainMenuScreen(Screen):
         yield Middle(
             Center(
                 Label("MixAdvice Preset Builder", id="title"),
-                Button("Ingest audio files",  id="ingest",  variant="primary"),
-                Button("Browse & tag tracks", id="browse",  variant="default"),
-                Button("Create preset",       id="create",  variant="success"),
-                Button("Quit",                id="quit",    variant="error"),
+                Button("Ingest audio files (disabled)",  id="ingest",  variant="primary", disabled=True),
+                Button("Browse & tag tracks",             id="browse",  variant="default"),
+                Button("Create preset (disabled)",        id="create",  variant="success", disabled=True),
+                Button("Quit",                            id="quit",    variant="error"),
+                Label(
+                    "Ingest and Create preset are frozen — this tool's analysis\n"
+                    "hasn't been updated yet to match Codex/MasterTweak's preset\n"
+                    "builder. Use Codex's Qt6 preset builder to ingest tracks and\n"
+                    "build/export new presets for now. Browse still works read-only\n"
+                    "against the existing local database.",
+                    id="deprecation-notice",
+                ),
             )
         )
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "ingest":
-            self.app.push_screen("ingest")
-        elif event.button.id == "browse":
+        if event.button.id == "browse":
             self.app.push_screen("browse")
-        elif event.button.id == "create":
-            self.app.push_screen("create_preset")
         elif event.button.id == "quit":
             self.app.exit()

@@ -153,6 +153,12 @@ Center Button {
     width: 100%;
     margin-bottom: 1;
 }
+
+#deprecation-notice {
+    color: #6666aa;
+    text-align: center;
+    margin-top: 1;
+}
 """
 
 
