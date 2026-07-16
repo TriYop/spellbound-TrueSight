@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Melodic Metal" description="Based on Evanescence">
+    <BandRmsDb sub="-20.3" lows="-17.9" lomid="-19.7" mids="-17.2" himid="-20.5" highs="-29.1" air="-53.4" />
+    <BandMinCorr sub="0.922" lows="0.442" lomid="0.312" mids="0.37" himid="0.283" highs="0.388" air="0.288" />
+    <BandTransientDb sub="17.4" lows="17.3" lomid="16.3" mids="16.5" himid="18.8" highs="25.4" air="30.3" />
+    <Overall rmsDb="-12.4" minCorr="0.497" />
+</MixAdvicePreset>

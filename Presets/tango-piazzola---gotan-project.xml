@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Tango Piazzola - Gotan Project" description="">
+    <BandRmsDb sub="-33.6" lows="-25.1" lomid="-26.0" mids="-25.1" himid="-32.9" highs="-45.1" air="-70.9" />
+    <BandMinCorr sub="0.623" lows="0.637" lomid="0.466" mids="0.297" himid="0.117" highs="0.008" air="0.087" />
+    <BandTransientDb sub="17.8" lows="18.8" lomid="20.4" mids="21.4" himid="25.0" highs="27.4" air="0.0" />
+    <Overall rmsDb="-18.6" minCorr="0.421" />
+</MixAdvicePreset>

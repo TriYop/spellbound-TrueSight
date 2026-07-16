@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Rap 90s" description="A selection of rap bands and MCs from the 90s">
+    <BandRmsDb sub="-20.8" lows="-19.6" lomid="-25.4" mids="-24.9" himid="-28.4" highs="-31.2" air="-54.6" />
+    <BandMinCorr sub="0.887" lows="0.854" lomid="0.781" mids="0.704" himid="0.604" highs="0.606" air="0.307" />
+    <BandTransientDb sub="16.2" lows="18.5" lomid="19.8" mids="22.4" himid="25.5" highs="26.3" air="27.5" />
+    <Overall rmsDb="-14.5" minCorr="0.819" />
+</MixAdvicePreset>

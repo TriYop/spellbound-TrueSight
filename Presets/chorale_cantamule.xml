@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Chorale (Cantamule)" description="Based on live recordings from the Cantamule">
+  <BandRmsDb sub="-51.0000" lows="-34.8333" lomid="-28.7500" mids="-24.8750" himid="-39.9583" highs="-54.7917" air="-82.0833"/>
+  <BandMinCorr sub="0.0000" lows="0.0000" lomid="0.0000" mids="0.0000" himid="0.0000" highs="0.0000" air="0.0000"/>
+  <BandTransientDb sub="0.0000" lows="2.0000" lomid="2.0000" mids="2.0000" himid="2.0000" highs="3.0000" air="3.0000"/>
+  <Overall rmsDb="-20.8515" minCorr="0.1840"/>
+</MixAdvicePreset>

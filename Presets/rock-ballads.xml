@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Rock Ballads" description="Based on a selection of rock ballads">
+    <BandRmsDb sub="-29.0" lows="-23.3" lomid="-26.3" mids="-24.9" himid="-29.4" highs="-36.5" air="-58.5" />
+    <BandMinCorr sub="0.882" lows="0.68" lomid="0.294" mids="0.475" himid="0.448" highs="0.372" air="0.062" />
+    <BandTransientDb sub="19.6" lows="17.8" lomid="18.8" mids="21.2" himid="25.3" highs="29.1" air="28.1" />
+    <Overall rmsDb="-18.6" minCorr="0.502" />
+</MixAdvicePreset>

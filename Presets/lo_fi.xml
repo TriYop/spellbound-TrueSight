@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Lo-Fi" description="Low Fidelity">
+  <BandRmsDb sub="-24.2917" lows="-25.4167" lomid="-27.8333" mids="-26.9167" himid="-35.8750" highs="-40.5000" air="-57.1250"/>
+  <BandMinCorr sub="0.0000" lows="0.0000" lomid="0.0000" mids="0.0000" himid="0.0000" highs="0.0000" air="0.0000"/>
+  <BandTransientDb sub="5.0000" lows="6.0000" lomid="7.0000" mids="8.0000" himid="9.5000" highs="11.0000" air="10.0000"/>
+  <Overall rmsDb="-17.1462" minCorr="0.3143"/>
+</MixAdvicePreset>

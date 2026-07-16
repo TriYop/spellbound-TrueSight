@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<MixAdvicePreset name="Metal (Metallica)"
-                 description="Guitars fill lo-mid through hi-mid, sub scooped, very loud and compressed">
-    <BandRmsDb       sub="-30" lows="-20" lomid="-16" mids="-16" himid="-18" highs="-22" air="-30"/>
-    <BandMinCorr     sub="0.75" lows="0.65" lomid="0.52" mids="0.48" himid="0.42" highs="0.32" air="0.25"/>
-    <BandTransientDb sub="6"   lows="14"  lomid="14"  mids="14"  himid="18"  highs="16"  air="12"/>
-    <Overall         rmsDb="-12" minCorr="0.48"/>
-</MixAdvicePreset>

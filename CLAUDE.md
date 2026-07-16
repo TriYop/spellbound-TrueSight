@@ -15,15 +15,7 @@ MixAdvice is a realtime audio analyzer DAW plugin (pre-mastering indicator) that
 
 ## Presets / Genre Targets
 
-The plugin ships genre-specific reference presets:
-- Herbert von Karajan — classical
-- Hans Zimmer — hybrid soundtrack
-- Fest Noz — traditional (Breton folk)
-- Dancefloor — electronic
-- Popstar — synth-pop and derivatives
-- Singer-songwriter
-
-Each preset defines the expected per-band levels, mono compatibility tolerances, and energy ranges for that genre.
+The plugin ships a curated library of reference presets built from real analyzed tracks (`Presets/*.xml`, embedded at build time — see `CMakeLists.txt`'s `MIXADVICE_PRESET_FILES` glob). Each preset defines the expected per-band levels, mono compatibility tolerances, and energy ranges for that reference material. The library is generated with `tools/preset-builder` (see that tool's README) and is expected to grow over time rather than stay fixed to a small archetype list — check `Presets/` for the current set.
 
 ## Build Commands
 

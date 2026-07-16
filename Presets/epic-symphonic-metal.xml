@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Epic Symphonic Metal" description="Symphonic Melodic metal based on nightwish, within temptation and epica">
+    <BandRmsDb sub="-22.4" lows="-18.8" lomid="-21.5" mids="-17.7" himid="-24.2" highs="-31.9" air="-52.8" />
+    <BandMinCorr sub="0.833" lows="0.455" lomid="0.176" mids="0.213" himid="0.102" highs="0.136" air="-0.042" />
+    <BandTransientDb sub="16.0" lows="16.2" lomid="17.0" mids="16.4" himid="20.8" highs="26.6" air="30.9" />
+    <Overall rmsDb="-13.3" minCorr="0.36" />
+</MixAdvicePreset>

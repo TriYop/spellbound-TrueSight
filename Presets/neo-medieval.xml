@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Neo Medieval" description="Neo Medieval Music">
+    <BandRmsDb sub="-48.2" lows="-36.2" lomid="-30.3" mids="-27.6" himid="-39.4" highs="-54.2" air="-86.6" />
+    <BandMinCorr sub="0.555" lows="0.673" lomid="0.537" mids="-0.011" himid="-0.269" highs="0.004" air="-0.018" />
+    <BandTransientDb sub="7.7" lows="17.1" lomid="18.8" mids="22.0" himid="23.8" highs="30.5" air="0.0" />
+    <Overall rmsDb="-24.9" minCorr="0.204" />
+</MixAdvicePreset>

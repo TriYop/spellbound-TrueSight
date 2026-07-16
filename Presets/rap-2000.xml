@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Rap 2000" description="IAM, NTM, Doc GYneco, Eminem">
+    <BandRmsDb sub="-17.7" lows="-17.3" lomid="-23.8" mids="-23.3" himid="-27.0" highs="-33.7" air="-60.5" />
+    <BandMinCorr sub="0.967" lows="0.95" lomid="0.821" mids="0.825" himid="0.868" highs="0.778" air="0.31" />
+    <BandTransientDb sub="15.7" lows="18.5" lomid="20.4" mids="22.2" himid="25.6" highs="26.5" air="27.5" />
+    <Overall rmsDb="-12.3" minCorr="0.923" />
+</MixAdvicePreset>

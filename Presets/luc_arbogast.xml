@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Luc Arbogast" description="">
+  <BandRmsDb sub="-23.0000" lows="-21.0000" lomid="-24.2174" mids="-21.5652" himid="-28.2174" highs="-100.0000" air="96.6957"/>
+  <BandMinCorr sub="0.0000" lows="0.0000" lomid="0.0000" mids="0.0000" himid="0.0000" highs="1.0000" air="0.0000"/>
+  <BandTransientDb sub="4.0000" lows="6.0000" lomid="6.0000" mids="7.0000" himid="6.0000" highs="0.0000" air="0.0000"/>
+  <Overall rmsDb="-13.8900" minCorr="0.4906"/>
+</MixAdvicePreset>

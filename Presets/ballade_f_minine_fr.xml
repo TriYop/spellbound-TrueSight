@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Ballade Féminine FR" description="">
+  <BandRmsDb sub="-22.9024" lows="-21.5854" lomid="-27.7317" mids="-26.3171" himid="-29.9593" highs="-31.5691" air="-47.2764"/>
+  <BandMinCorr sub="0.0000" lows="0.0000" lomid="0.0000" mids="0.0000" himid="0.0000" highs="0.0000" air="0.0000"/>
+  <BandTransientDb sub="5.0000" lows="6.0000" lomid="8.0000" mids="9.0000" himid="10.0000" highs="11.0000" air="11.0000"/>
+  <Overall rmsDb="-15.1081" minCorr="0.7348"/>
+</MixAdvicePreset>

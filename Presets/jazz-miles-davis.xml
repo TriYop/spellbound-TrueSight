@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<MixAdvicePreset name="Jazz (Miles Davis)"
-                 description="Very dynamic, warm natural balance, low average level, high mono compat">
-    <BandRmsDb       sub="-38" lows="-30" lomid="-26" mids="-24" himid="-28" highs="-32" air="-38"/>
-    <BandMinCorr     sub="0.82" lows="0.80" lomid="0.76" mids="0.72" himid="0.65" highs="0.58" air="0.48"/>
-    <BandTransientDb sub="8"   lows="14"  lomid="18"  mids="20"  himid="22"  highs="20"  air="16"/>
-    <Overall         rmsDb="-28" minCorr="0.72"/>
-</MixAdvicePreset>

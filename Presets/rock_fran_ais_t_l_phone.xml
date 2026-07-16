@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Rock Français - Téléphone" description="">
+  <BandRmsDb sub="-27.8333" lows="-24.1667" lomid="-27.6667" mids="-22.5000" himid="-27.6667" highs="-32.6667" air="-46.5000"/>
+  <BandMinCorr sub="0.0000" lows="0.0000" lomid="0.0000" mids="0.0000" himid="0.0000" highs="0.0000" air="0.0000"/>
+  <BandTransientDb sub="1.5000" lows="4.5000" lomid="6.0000" mids="6.0000" himid="6.5000" highs="7.0000" air="6.5000"/>
+  <Overall rmsDb="-16.3034" minCorr="0.4885"/>
+</MixAdvicePreset>

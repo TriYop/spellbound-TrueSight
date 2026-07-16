@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Indus Metal" description="Based on Lumsk and Rammstein">
+    <BandRmsDb sub="-20.2" lows="-15.7" lomid="-21.4" mids="-19.1" himid="-20.9" highs="-29.6" air="-51.1" />
+    <BandMinCorr sub="0.894" lows="0.401" lomid="0.397" mids="0.471" himid="0.404" highs="0.419" air="-0.041" />
+    <BandTransientDb sub="14.8" lows="15.3" lomid="17.7" mids="18.1" himid="20.5" highs="25.1" air="25.9" />
+    <Overall rmsDb="-12.1" minCorr="0.507" />
+</MixAdvicePreset>

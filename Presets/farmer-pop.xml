@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Farmer Pop" description="Mylene Farmer / Alizee french pop">
+    <BandRmsDb sub="-22.3" lows="-20.8" lomid="-21.9" mids="-20.7" himid="-25.9" highs="-29.5" air="-53.7" />
+    <BandMinCorr sub="0.8" lows="0.587" lomid="0.516" mids="0.507" himid="0.56" highs="0.627" air="0.605" />
+    <BandTransientDb sub="17.3" lows="17.6" lomid="17.3" mids="20.0" himid="23.7" highs="26.9" air="28.4" />
+    <Overall rmsDb="-14.7" minCorr="0.642" />
+</MixAdvicePreset>

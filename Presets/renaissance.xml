@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Renaissance" description="General Renaissance Music">
+    <BandRmsDb sub="-53.3" lows="-39.9" lomid="-31.1" mids="-28.5" himid="-41.3" highs="-57.3" air="-92.2" />
+    <BandMinCorr sub="0.545" lows="0.69" lomid="0.534" mids="-0.019" himid="-0.282" highs="-0.004" air="-0.016" />
+    <BandTransientDb sub="6.5" lows="16.9" lomid="18.7" mids="22.4" himid="23.9" highs="31.1" air="0.0" />
+    <Overall rmsDb="-27.1" minCorr="0.193" />
+</MixAdvicePreset>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="EUrodance 90s" description="Based on a selection of radio hits">
+    <BandRmsDb sub="-19.6" lows="-20.0" lomid="-24.3" mids="-21.9" himid="-26.6" highs="-29.0" air="-55.8" />
+    <BandMinCorr sub="0.936" lows="0.847" lomid="0.517" mids="0.427" himid="0.447" highs="0.307" air="-0.014" />
+    <BandTransientDb sub="13.7" lows="16.6" lomid="19.1" mids="19.6" himid="22.5" highs="24.2" air="25.6" />
+    <Overall rmsDb="-14.1" minCorr="0.756" />
+</MixAdvicePreset>

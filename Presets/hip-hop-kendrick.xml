@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<MixAdvicePreset name="Hip-Hop (Kendrick Lamar)"
-                 description="Enormous mono sub, punchy lows, forward vocal mids, heavily compressed">
-    <BandRmsDb       sub="-16" lows="-16" lomid="-22" mids="-20" himid="-24" highs="-28" air="-34"/>
-    <BandMinCorr     sub="0.95" lows="0.88" lomid="0.65" mids="0.60" himid="0.50" highs="0.38" air="0.28"/>
-    <BandTransientDb sub="10"  lows="12"  lomid="8"   mids="14"  himid="16"  highs="14"  air="10"/>
-    <Overall         rmsDb="-12" minCorr="0.55"/>
-</MixAdvicePreset>

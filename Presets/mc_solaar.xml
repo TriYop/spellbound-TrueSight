@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="MC Solaar" description="">
+  <BandRmsDb sub="-21.6346" lows="-21.0769" lomid="-28.1442" mids="-27.1538" himid="-29.7885" highs="-30.9135" air="-46.7115"/>
+  <BandMinCorr sub="0.0000" lows="0.0000" lomid="0.0000" mids="0.0000" himid="0.0000" highs="0.0000" air="0.0000"/>
+  <BandTransientDb sub="5.0000" lows="6.0000" lomid="8.0000" mids="9.0000" himid="10.0000" highs="11.0000" air="11.0000"/>
+  <Overall rmsDb="-14.8627" minCorr="0.8179"/>
+</MixAdvicePreset>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Fest Noz - Vocal" description="A selection of kann/diskann for Fest-Noz">
+    <BandRmsDb sub="-50.8" lows="-27.7" lomid="-23.4" mids="-19.5" himid="-27.0" highs="-41.7" air="-66.4" />
+    <BandMinCorr sub="0.5" lows="0.707" lomid="0.688" mids="0.695" himid="0.646" highs="0.634" air="0.718" />
+    <BandTransientDb sub="17.5" lows="16.4" lomid="16.3" mids="17.7" himid="22.6" highs="31.1" air="0.0" />
+    <Overall rmsDb="-16.4" minCorr="0.689" />
+</MixAdvicePreset>

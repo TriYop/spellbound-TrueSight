@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<MixAdvicePreset name="Singer-Songwriter (Bon Iver)"
-                 description="Dynamic, vocal-centric, natural acoustic range, wide stereo">
-    <BandRmsDb       sub="-30" lows="-26" lomid="-22" mids="-20" himid="-22" highs="-26" air="-32"/>
-    <BandMinCorr     sub="0.85" lows="0.80" lomid="0.75" mids="0.70" himid="0.62" highs="0.52" air="0.42"/>
-    <BandTransientDb sub="6"   lows="12"  lomid="16"  mids="18"  himid="18"  highs="16"  air="12"/>
-    <Overall         rmsDb="-22" minCorr="0.68"/>
-</MixAdvicePreset>

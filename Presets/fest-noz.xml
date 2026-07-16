@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Fest-Noz" description="Format moderne (bombarde, accordeon, guitare, flute, violon, percus, ...)">
+    <BandRmsDb sub="-36.6" lows="-26.0" lomid="-25.2" mids="-21.9" himid="-25.5" highs="-33.4" air="-54.1" />
+    <BandMinCorr sub="0.64" lows="0.489" lomid="0.58" mids="0.6" himid="0.593" highs="0.301" air="0.229" />
+    <BandTransientDb sub="18.8" lows="17.7" lomid="17.7" mids="17.6" himid="19.6" highs="26.3" air="31.0" />
+    <Overall rmsDb="-17.0" minCorr="0.628" />
+</MixAdvicePreset>

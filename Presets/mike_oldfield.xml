@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Mike Oldfield" description="">
+  <BandRmsDb sub="-26.3125" lows="-27.5000" lomid="-28.4375" mids="-27.3125" himid="-35.6250" highs="-40.6250" air="-57.6250"/>
+  <BandMinCorr sub="-0.0000" lows="-0.0000" lomid="-0.0000" mids="0.0000" himid="0.0000" highs="0.0000" air="0.0000"/>
+  <BandTransientDb sub="5.0000" lows="6.0000" lomid="6.5000" mids="8.0000" himid="9.0000" highs="10.5000" air="11.0000"/>
+  <Overall rmsDb="-18.4554" minCorr="0.2894"/>
+</MixAdvicePreset>

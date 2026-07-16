@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Rock 80s 90s" description="From various french and international rock bands">
+    <BandRmsDb sub="-23.9" lows="-18.3" lomid="-22.5" mids="-20.1" himid="-23.8" highs="-31.6" air="-52.4" />
+    <BandMinCorr sub="0.733" lows="0.537" lomid="0.407" mids="0.471" himid="0.284" highs="0.421" air="0.309" />
+    <BandTransientDb sub="16.6" lows="16.6" lomid="17.5" mids="18.4" himid="21.1" highs="26.4" air="29.4" />
+    <Overall rmsDb="-13.8" minCorr="0.526" />
+</MixAdvicePreset>

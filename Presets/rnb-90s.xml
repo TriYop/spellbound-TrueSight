@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="RnB 90s" description="">
+    <BandRmsDb sub="-17.9" lows="-18.5" lomid="-22.4" mids="-20.6" himid="-24.7" highs="-28.8" air="-55.5" />
+    <BandMinCorr sub="0.74" lows="0.795" lomid="0.534" mids="0.612" himid="0.718" highs="0.461" air="0.132" />
+    <BandTransientDb sub="15.2" lows="18.0" lomid="18.4" mids="20.1" himid="23.9" highs="26.0" air="26.8" />
+    <Overall rmsDb="-12.3" minCorr="0.695" />
+</MixAdvicePreset>

@@ -5,7 +5,7 @@ This is a realtime audio analyzer plugin for DAWs designed to check mix against 
 ## What it does
 
 Detect mix issues and emit advices to help achieve good mix / master. It should be used as pre-mastering indicator.
-Should contain several preset matching a specific kind of music : Herbert von Karajan (classical music), Hans Zimmer (hybrid soundtrack), Fest Noz (traditional music), Dancefloor (electronic music), Popstar (synth-pop and derivatives), Singer-songwriter
+Ships with a curated library of genre/reference presets, built from real analyzed tracks via `tools/preset-builder` (see `Presets/*.xml`) — not a fixed set of archetypes, the library grows as new reference tracks are analyzed.
 
 
 - detect MONO compatibility issues (sound cancelation issues per band (sub, lows, low mids, mids, hi mids, highs, air))

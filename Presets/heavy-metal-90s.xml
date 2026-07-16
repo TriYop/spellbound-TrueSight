@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixAdvicePreset name="Heavy Metal 90s" description="Based on Metallica and Iron Maiden">
+    <BandRmsDb sub="-27.2" lows="-21.5" lomid="-26.9" mids="-25.1" himid="-23.9" highs="-32.7" air="-56.0" />
+    <BandMinCorr sub="0.873" lows="0.528" lomid="0.348" mids="0.414" himid="0.278" highs="0.3" air="0.195" />
+    <BandTransientDb sub="17.4" lows="16.7" lomid="17.4" mids="19.3" himid="19.6" highs="25.4" air="26.2" />
+    <Overall rmsDb="-17.4" minCorr="0.487" />
+</MixAdvicePreset>
