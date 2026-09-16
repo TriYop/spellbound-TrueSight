@@ -32,3 +32,5 @@ add_truesight_test(test_resonance_golden
     test_resonance_golden.cpp
     ${CMAKE_SOURCE_DIR}/Source/Analysis/ResonancePeakMath.cpp
     AudioPluginsCommon::analysis)
+
+add_truesight_test(test_crossover_golden test_crossover_golden.cpp AudioPluginsCommon::dsp)

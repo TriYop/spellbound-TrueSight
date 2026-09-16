@@ -1,17 +1,20 @@
 #pragma once
 #include <array>
+#include <vector>
 #include <juce_dsp/juce_dsp.h>
 #include <juce_audio_basics/juce_audio_basics.h>
+#include "audioplugins/common/dsp/SevenBandSplitter.h"
 #include "BandConfig.h"
 #include "AnalysisResult.h"
 #include "QuantileHistogram.h"
 #include "LoudnessAnalyser.h"
 #include "ResonanceDetector.h"
 
-// Splits the stereo input into 7 frequency bands using cascaded Linkwitz-Riley
-// crossovers, then computes per-band RMS and L/R Pearson correlation.
-// All measurements are smoothed with a first-order IIR before being written
-// to `result` (which is safe to read from the UI thread at any time).
+// Splits the stereo input into 7 frequency bands using
+// common::dsp::SevenBandSplitter (Linkwitz-Riley crossovers), then computes
+// per-band RMS and L/R Pearson correlation. All measurements are smoothed
+// with a first-order IIR before being written to `result` (which is safe to
+// read from the UI thread at any time).
 class AnalyserEngine
 {
 public:
@@ -22,19 +25,15 @@ public:
     AnalysisResult result;
 
 private:
-    static constexpr int numCrossovers = BandConfig::numBands - 1;
-
     static float blockRmsLinear   (const float* data, int n) noexcept;
     static float blockPeak        (const float* data, int n) noexcept;
     static float blockCorrelation (const float* L, const float* R, int n) noexcept;
 
-    // One LP + one HP per crossover, each stereo-capable
-    std::array<juce::dsp::LinkwitzRileyFilter<float>, numCrossovers> lpFilters_;
-    std::array<juce::dsp::LinkwitzRileyFilter<float>, numCrossovers> hpFilters_;
-
-    // Pre-allocated working buffers (size = maxBlockSize at prepare-time)
-    juce::AudioBuffer<float> remainderBuf_;
-    juce::AudioBuffer<float> bandBuf_;
+    audioplugins::common::dsp::SevenBandSplitter splitter_;
+    // Pre-allocated once in prepare(); process() only fills these, never resizes,
+    // so the audio thread never allocates.
+    std::vector<std::vector<float>> splitterInput_;                    // [channel][frame]
+    std::vector<std::vector<std::vector<float>>> splitterBands_;       // [band][channel][frame]
 
     // Smoothed linear-amplitude RMS, correlation, and crest factor per band
     std::array<float, BandConfig::numBands> smoothRmsL_   {};
