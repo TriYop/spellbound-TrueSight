@@ -5,6 +5,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# AudioPluginsCommon's static libraries (e.g. common/analysis, now pulled into
+# MixAdvice via the LoudnessAnalyser wrapper) aren't built with -fPIC by
+# default; linking their object files into the VST3/CLAP shared modules fails
+# with "recompile with -fPIC" otherwise. Must be set before FetchContent'ing
+# any of the dependencies below so it applies to their targets too.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -61,7 +68,6 @@ target_sources(MixAdvice PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/Analysis/AnalyserEngine.cpp
-    Source/Analysis/LoudnessAnalyser.cpp
     Source/Analysis/ResonanceDetector.cpp
     Source/Presets/PresetManager.cpp
 )
