@@ -29,9 +29,6 @@ public:
 private:
     void loadBuiltIn();
     void mergeFromDirectory (juce::File dir);
-    static std::optional<PresetData> parseXml (const juce::String& xmlText);
-    static bool readBandArray (const juce::XmlElement& el,
-                               std::array<float, BandConfig::numBands>& out);
 
     std::vector<PresetData> presets_;
 };

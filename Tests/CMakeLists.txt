@@ -8,3 +8,7 @@ function(add_truesight_test name source)
 endfunction()
 
 add_truesight_test(test_band_config test_band_config.cpp AudioPluginsCommon::analysis)
+
+add_truesight_test(test_preset_conversion test_preset_conversion.cpp AudioPluginsCommon::analysis)
+target_compile_definitions(test_preset_conversion PRIVATE
+    TRUESIGHT_PRESETS_DIR="${CMAKE_SOURCE_DIR}/Presets")
