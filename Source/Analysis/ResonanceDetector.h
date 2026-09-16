@@ -2,6 +2,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <vector>
 #include <juce_core/juce_core.h>
 #include <juce_dsp/juce_dsp.h>
 #include "AnalysisResult.h"
@@ -51,15 +52,10 @@ private:
     static constexpr int kFifoCapacity = 16384;
     static constexpr int kPeakPickEveryNHops = 5;         // throttle: ~4-5 Hz at typical sample rates
 
-    static constexpr float kMinFreqHz    = 80.f;
-    static constexpr float kMaxFreqHz    = 16000.f;
-    static constexpr float kMinQ         = 3.f;
-    static constexpr int   kMaxResults   = AnalysisResult::maxResonances;
-    static constexpr float kProminenceDb = 6.f;
-    static constexpr float kMaxGainDb    = 12.f;
-    static constexpr float kMinGainDb    = 3.f;
-
-    struct Candidate { float freqHz = 0.f, q = 1.f, prominence = 0.f; };
+    // Peak-picking thresholds (kMinFreqHz, kMaxFreqHz, kMinQ, kProminenceDb,
+    // kMaxGainDb, kMinGainDb) now live in ResonancePeakMath.cpp, next to the
+    // pure function that uses them.
+    static constexpr int kMaxResults = AnalysisResult::maxResonances;
 
     AnalysisResult& result_;
 
@@ -73,13 +69,12 @@ private:
     double sampleRate_ { 44100.0 };
 
     // Worker-thread-only state (never touched by the audio thread).
-    juce::dsp::FFT fft_ { kFftOrder };
+    std::vector<float> fftRe_, fftIm_;   // sized to kFftSize in prepare()
     std::array<float, kFftSize>  hannWindow_ {};
     std::array<float, kFftSize>  historyBuffer_ {};    // sliding 4096-sample analysis window
     std::array<float, kHopSize>  hopScratch_ {};
     std::array<float, 2 * kFftSize> fftScratch_ {};
     std::array<float, kHalfN>    avgMag_ {};            // cumulative (Welford) running-mean magnitude spectrum
-    std::array<double, kHalfN + 1> prefixDb_ {};        // prefix sum of magDb, for O(1) background-level lookups
     uint64_t windowsSinceReset_ { 0 };
     int      hopsSincePeakPick_ { 0 };
 };

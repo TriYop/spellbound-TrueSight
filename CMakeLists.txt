@@ -69,6 +69,7 @@ target_sources(MixAdvice PRIVATE
     Source/PluginEditor.cpp
     Source/Analysis/AnalyserEngine.cpp
     Source/Analysis/ResonanceDetector.cpp
+    Source/Analysis/ResonancePeakMath.cpp
     Source/Presets/PresetManager.cpp
 )
 
