@@ -741,7 +741,11 @@ void MixAdviceAudioProcessorEditor::exportAdvice()
 
     const auto commonSnap   = buildAnalysisSnapshot (snap, kPercentileWarmupSec);
     const auto commonPreset = toCommonPresetData (preset);
-    const auto advice       = audioplugins::common::analysis::deriveAdvice (commonSnap, commonPreset);
+    auto       advice       = audioplugins::common::analysis::deriveAdvice (commonSnap, commonPreset);
+    // deriveAdvice() leaves AdviceSet::resonances empty by design; carry over
+    // TrueSight's own live-detected resonances (already shown in the UI's
+    // separate drawResonancePanel) so the exported report lists them too.
+    advice.resonances = buildResonancePeaks (snap);
     const juce::String md   = juce::String (audioplugins::common::analysis::formatAdviceMarkdown (
         commonSnap, advice, commonPreset, preset.name.toStdString()));
 

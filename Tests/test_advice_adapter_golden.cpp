@@ -56,5 +56,44 @@ int main() {
                   "limiter target should include the LRA offset once ready");
     }
 
+    // buildResonancePeaks() carries TrueSight's own live-detected resonances
+    // (deriveAdvice() itself always leaves AdviceSet::resonances empty) into
+    // Common's ResonancePeak shape, so the exported markdown's "Resonance EQ"
+    // table isn't always empty -- covers the gap flagged in code review.
+    {
+        AnalysisResult::Snapshot snap{};
+        snap.resonanceCount = 2;
+        snap.resonanceFreqHz[0] = 120.f;  snap.resonanceQ[0] = 4.5f;  snap.resonanceGainDb[0] = -3.f;
+        snap.resonanceFreqHz[1] = 2500.f; snap.resonanceQ[1] = 6.0f;  snap.resonanceGainDb[1] = -1.5f;
+
+        const auto peaks = buildResonancePeaks(snap);
+        CHECK_MSG(peaks.size() == 2, "should carry over exactly resonanceCount peaks");
+        CHECK_MSG(std::abs(peaks[0].freqHz - 120.f) < 1e-3f, "peak 0 freq mismatch");
+        CHECK_MSG(std::abs(peaks[0].q - 4.5f) < 1e-3f, "peak 0 Q mismatch");
+        CHECK_MSG(std::abs(peaks[0].gainDb - (-3.f)) < 1e-3f, "peak 0 gain mismatch");
+        CHECK_MSG(peaks[0].enabled, "carried-over peaks should default to enabled");
+        CHECK_MSG(std::abs(peaks[1].freqHz - 2500.f) < 1e-3f, "peak 1 freq mismatch");
+        CHECK_MSG(std::abs(peaks[1].q - 6.0f) < 1e-3f, "peak 1 Q mismatch");
+        CHECK_MSG(std::abs(peaks[1].gainDb - (-1.5f)) < 1e-3f, "peak 1 gain mismatch");
+    }
+
+    // resonanceCount is clamped to AnalysisResult::maxResonances, same bound
+    // the old (removed) generateMarkdown() used.
+    {
+        AnalysisResult::Snapshot snap{};
+        snap.resonanceCount = AnalysisResult::maxResonances + 5;
+        const auto peaks = buildResonancePeaks(snap);
+        CHECK_MSG(peaks.size() == static_cast<size_t>(AnalysisResult::maxResonances),
+                  "resonanceCount should be clamped to maxResonances");
+    }
+
+    // No detections -> no peaks (the common "silence" case).
+    {
+        AnalysisResult::Snapshot snap{};
+        snap.resonanceCount = 0;
+        const auto peaks = buildResonancePeaks(snap);
+        CHECK_MSG(peaks.empty(), "zero resonanceCount should produce no peaks");
+    }
+
     TEST_SUMMARY();
 }

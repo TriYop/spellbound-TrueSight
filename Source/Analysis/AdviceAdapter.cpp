@@ -1,5 +1,6 @@
 #include "AdviceAdapter.h"
 #include "BandConfig.h"
+#include <algorithm>
 
 audioplugins::common::analysis::AnalysisSnapshot buildAnalysisSnapshot (
     const AnalysisResult::Snapshot& snap, float warmupSec)
@@ -47,5 +48,27 @@ audioplugins::common::analysis::PresetData toCommonPresetData (const ::PresetDat
     out.bandTransientDb  = preset.bandTransientDb;
     out.overallRmsDb     = preset.overallRmsDb;
     out.overallMinCorr   = preset.overallMinCorr;
+    return out;
+}
+
+std::vector<audioplugins::common::analysis::ResonancePeak> buildResonancePeaks (
+    const AnalysisResult::Snapshot& snap)
+{
+    using audioplugins::common::analysis::ResonancePeak;
+    std::vector<ResonancePeak> out;
+
+    // Same clamp the old (removed) generateMarkdown() used before iterating
+    // snap.resonance* -- resonanceCount is written by the background
+    // ResonanceDetector thread and isn't otherwise bounds-checked.
+    const int count = std::clamp (snap.resonanceCount, 0, AnalysisResult::maxResonances);
+    out.reserve (static_cast<size_t> (count));
+
+    for (int i = 0; i < count; ++i)
+    {
+        const auto bi = static_cast<size_t> (i);
+        out.push_back ({ snap.resonanceFreqHz[bi], snap.resonanceQ[bi], snap.resonanceGainDb[bi],
+                          /*enabled=*/true, /*prominenceDb=*/0.f });
+    }
+
     return out;
 }
