@@ -70,6 +70,7 @@ target_sources(MixAdvice PRIVATE
     Source/Analysis/AnalyserEngine.cpp
     Source/Analysis/ResonanceDetector.cpp
     Source/Analysis/ResonancePeakMath.cpp
+    Source/Analysis/AdviceAdapter.cpp
     Source/Presets/PresetManager.cpp
 )
 

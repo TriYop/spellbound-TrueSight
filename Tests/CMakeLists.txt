@@ -34,3 +34,19 @@ add_truesight_test(test_resonance_golden
     AudioPluginsCommon::analysis)
 
 add_truesight_test(test_crossover_golden test_crossover_golden.cpp AudioPluginsCommon::dsp)
+
+# AdviceAdapter.cpp's toCommonPresetData() converts TrueSight's juce::String-based
+# ::PresetData, so (unlike this directory's other JUCE-free tests) this target needs
+# juce::juce_core linked -- its INTERFACE sources pull the real juce_core.cpp
+# translation unit into this executable so juce::String's out-of-line methods link.
+add_truesight_test(test_advice_adapter_golden
+    test_advice_adapter_golden.cpp
+    ${CMAKE_SOURCE_DIR}/Source/Analysis/AdviceAdapter.cpp
+    AudioPluginsCommon::analysis
+    juce::juce_core)
+target_include_directories(test_advice_adapter_golden PRIVATE ${CMAKE_SOURCE_DIR}/Source)
+# Same juce_core module-level opt-outs as the main MixAdvice target (top-level
+# CMakeLists.txt), needed here too since this target compiles juce_core.cpp directly.
+target_compile_definitions(test_advice_adapter_golden PRIVATE
+    JUCE_USE_CURL=0
+    JUCE_WEB_BROWSER=0)

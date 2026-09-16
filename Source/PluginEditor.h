@@ -34,8 +34,6 @@ private:
                              const AnalysisResult::Snapshot&) const;
 
     void exportAdvice();
-    static juce::String generateMarkdown (const AnalysisResult::Snapshot&,
-                                          const PresetData&);
     void drawDbScale     (juce::Graphics&, juce::Rectangle<int> area) const;
     void drawOverallMeter (juce::Graphics&, juce::Rectangle<int> area,
                            const AnalysisResult::Snapshot&,
