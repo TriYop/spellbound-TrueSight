@@ -24,6 +24,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(clap-juce-extensions)
 
+FetchContent_Declare(
+    AudioPluginsCommon
+    GIT_REPOSITORY https://github.com/TriYop/spellbound-common.git
+    GIT_TAG        v0.7.0
+)
+FetchContent_MakeAvailable(AudioPluginsCommon)
+
+enable_testing()
+add_subdirectory(Tests)
+
 file(GLOB MIXADVICE_PRESET_FILES "Presets/*.xml")
 juce_add_binary_data(MixAdviceBuiltInPresets SOURCES ${MIXADVICE_PRESET_FILES})
 
@@ -73,6 +83,8 @@ target_link_libraries(MixAdvice
         juce::juce_audio_plugin_client
         juce::juce_dsp
         clap_juce_extensions
+        AudioPluginsCommon::dsp
+        AudioPluginsCommon::analysis
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
