@@ -1,4 +1,6 @@
-# MixAdvice
+# Spellbound TrueSight
+
+*"See Through Every Mix"*
 
 This is a realtime audio analyzer plugin for DAWs designed to check mix against standards.
 

@@ -61,7 +61,7 @@ juce_add_plugin(MixAdvice
     NEEDS_MIDI_OUTPUT           FALSE
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    DESCRIPTION                 "Realtime mix analyzer and pre-mastering advisor"
+    DESCRIPTION                 "Spellbound TrueSight — See Through Every Mix"
 )
 
 target_sources(MixAdvice PRIVATE
