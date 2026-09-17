@@ -1,10 +1,15 @@
 #pragma once
 #include "audioplugins/common/analysis/AnalysisSnapshot.h"
-#include "audioplugins/common/analysis/PresetData.h"
 #include "audioplugins/common/analysis/ResonancePeakPicker.h"
 #include "AnalysisResult.h"
-#include "../Presets/PresetData.h"
 #include <vector>
+
+// This header is deliberately framework-free (only touches AnalysisResult.h,
+// which is plain C++ atomics -- no JUCE), so it can be included directly by
+// Tests/ CTest binaries without pulling JUCE into them. TrueSight's
+// juce::String-based ::PresetData conversion (toCommonPresetData()) lives as
+// a small local helper in PluginEditor.cpp instead, right next to its only
+// two call sites -- see that file for the JUCE-touching glue.
 
 // Converts TrueSight's live-measured AnalysisResult::Snapshot into
 // AudioPluginsCommon's AnalysisSnapshot, reproducing this UI's existing
@@ -12,8 +17,6 @@
 // boundary rather than inside Common's deriveAdvice().
 audioplugins::common::analysis::AnalysisSnapshot buildAnalysisSnapshot (
     const AnalysisResult::Snapshot& snap, float warmupSec);
-
-audioplugins::common::analysis::PresetData toCommonPresetData (const ::PresetData& preset);
 
 // deriveAdvice() deliberately leaves AdviceSet::resonances empty -- callers
 // wire in their own resonance data. TrueSight already has its own live

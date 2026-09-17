@@ -15,10 +15,7 @@
 int main() {
     using namespace audioplugins::common::analysis;
 
-    // Qualified explicitly: AdviceAdapter.h also pulls in TrueSight's own
-    // (juce::String-based) ::PresetData, which would otherwise make the bare
-    // name "PresetData" ambiguous here.
-    audioplugins::common::analysis::PresetData preset;
+    PresetData preset;
     preset.bandRmsDb.fill(-18.f);
     preset.bandMinCorr.fill(0.6f);
     preset.bandTransientDb.fill(8.f);

@@ -33,6 +33,24 @@ static constexpr int kResonanceH = 46;   // resonance-cuts strip, above the advi
 // then, advice reference levels fall back to the existing avg/peak blend.
 static constexpr float kPercentileWarmupSec = 2.0f;
 
+// ── Advice adapter glue (JUCE-touching; kept out of the framework-free
+// Source/Analysis/AdviceAdapter.h/.cpp so Tests/ can include that header
+// without pulling JUCE in) ────────────────────────────────────────────────────
+namespace {
+audioplugins::common::analysis::PresetData toCommonPresetData (const ::PresetData& preset)
+{
+    audioplugins::common::analysis::PresetData out;
+    out.name            = preset.name.toStdString();
+    out.description     = preset.description.toStdString();
+    out.bandRmsDb        = preset.bandRmsDb;
+    out.bandMinCorr      = preset.bandMinCorr;
+    out.bandTransientDb  = preset.bandTransientDb;
+    out.overallRmsDb     = preset.overallRmsDb;
+    out.overallMinCorr   = preset.overallMinCorr;
+    return out;
+}
+} // namespace
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 static float dbToNorm (float db) noexcept
 {

@@ -38,19 +38,6 @@ audioplugins::common::analysis::AnalysisSnapshot buildAnalysisSnapshot (
     return out;
 }
 
-audioplugins::common::analysis::PresetData toCommonPresetData (const ::PresetData& preset)
-{
-    audioplugins::common::analysis::PresetData out;
-    out.name            = preset.name.toStdString();
-    out.description     = preset.description.toStdString();
-    out.bandRmsDb        = preset.bandRmsDb;
-    out.bandMinCorr      = preset.bandMinCorr;
-    out.bandTransientDb  = preset.bandTransientDb;
-    out.overallRmsDb     = preset.overallRmsDb;
-    out.overallMinCorr   = preset.overallMinCorr;
-    return out;
-}
-
 std::vector<audioplugins::common::analysis::ResonancePeak> buildResonancePeaks (
     const AnalysisResult::Snapshot& snap)
 {
