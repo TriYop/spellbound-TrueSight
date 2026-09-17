@@ -51,8 +51,10 @@ struct AnalysisResult
     // EBU R128 Loudness Range (LU), integrated since last resetPeaks(). 0 = not enough data yet.
     std::atomic<float> lraLu { 0.f };
 
-    // Detected spectral resonance peaks (cut suggestions), written by the background
-    // ResonanceDetector thread. gainDb is always <= 0 (a suggested notch, never a boost).
+    // Detected spectral resonance peaks (cut suggestions). Published from the audio
+    // thread (ResonanceWorker::pushSamples(), copying the background worker's latest
+    // peak-pick result) so that, like the rest of this struct, only the audio thread
+    // ever writes here. gainDb is always <= 0 (a suggested notch, never a boost).
     static constexpr int maxResonances = 8;
     std::array<std::atomic<float>, maxResonances> resonanceFreqHz;
     std::array<std::atomic<float>, maxResonances> resonanceQ;

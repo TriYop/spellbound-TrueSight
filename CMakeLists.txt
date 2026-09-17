@@ -34,9 +34,20 @@ FetchContent_MakeAvailable(clap-juce-extensions)
 FetchContent_Declare(
     AudioPluginsCommon
     GIT_REPOSITORY https://github.com/TriYop/spellbound-common.git
-    GIT_TAG        v0.7.0
+    GIT_TAG        v0.8.0
 )
 FetchContent_MakeAvailable(AudioPluginsCommon)
+
+# ResonanceWorker::ResonanceResult (100 bytes) is too large for a lock-free
+# std::atomic on Linux/GCC — libstdc++ falls back to a library-provided lock,
+# which needs an explicit link against libatomic (not auto-linked by ld).
+# Windows/macOS handling is deferred along with the rest of cross-platform
+# packaging (see workspace CLAUDE.md).
+if(UNIX AND NOT APPLE)
+    set(TRUESIGHT_ATOMIC_LIB atomic)
+else()
+    set(TRUESIGHT_ATOMIC_LIB "")
+endif()
 
 enable_testing()
 add_subdirectory(Tests)
@@ -68,7 +79,7 @@ target_sources(MixAdvice PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/Analysis/AnalyserEngine.cpp
-    Source/Analysis/ResonanceDetector.cpp
+    Source/Analysis/ResonanceWorker.cpp
     Source/Analysis/ResonancePeakMath.cpp
     Source/Analysis/AdviceAdapter.cpp
     Source/Presets/PresetManager.cpp
@@ -93,6 +104,8 @@ target_link_libraries(MixAdvice
         clap_juce_extensions
         AudioPluginsCommon::dsp
         AudioPluginsCommon::analysis
+        AudioPluginsCommon::io
+        ${TRUESIGHT_ATOMIC_LIB}
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

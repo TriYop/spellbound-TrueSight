@@ -6,7 +6,7 @@
 #include "AnalysisResult.h"
 #include "QuantileHistogram.h"
 #include "LoudnessAnalyser.h"
-#include "ResonanceDetector.h"
+#include "ResonanceWorker.h"
 
 // Splits the stereo input into 7 frequency bands using
 // common::dsp::SevenBandSplitter (Linkwitz-Riley crossovers), then computes
@@ -82,7 +82,7 @@ private:
     // it is destroyed *before* `result` (C++ destroys members in reverse declaration
     // order) — it holds a reference to `result` and must stop before that reference
     // becomes dangling.
-    ResonanceDetector resonance_ { result };
+    ResonanceWorker resonance_ { result };
 
 public:
     void resetPeaks();

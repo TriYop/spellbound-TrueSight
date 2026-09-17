@@ -20,8 +20,9 @@ audioplugins::common::analysis::AnalysisSnapshot buildAnalysisSnapshot (
 
 // deriveAdvice() deliberately leaves AdviceSet::resonances empty -- callers
 // wire in their own resonance data. TrueSight already has its own live
-// detections (from ResonanceDetector, published into AnalysisResult), so
-// this just carries those over into Common's ResonancePeak shape for
-// display in the exported markdown report (see AdviceAdapter.cpp).
+// detections (from ResonanceWorker's background analysis, published into
+// AnalysisResult from the audio thread), so this just carries those over
+// into Common's ResonancePeak shape for display in the exported markdown
+// report (see AdviceAdapter.cpp).
 std::vector<audioplugins::common::analysis::ResonancePeak> buildResonancePeaks (
     const AnalysisResult::Snapshot& snap);
