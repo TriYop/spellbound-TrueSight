@@ -1,6 +1,9 @@
 #include "PluginEditor.h"
 #include "Analysis/BandConfig.h"
+#include "Analysis/AdviceAdapter.h"
 #include "Presets/PresetManager.h"
+#include "audioplugins/common/analysis/AdviceSet.h"
+#include "audioplugins/common/analysis/Report.h"
 #include <algorithm>
 #include <cmath>
 
@@ -29,6 +32,24 @@ static constexpr int kResonanceH = 46;   // resonance-cuts strip, above the advi
 // Percentile stats need a few seconds of audio before they're meaningful — until
 // then, advice reference levels fall back to the existing avg/peak blend.
 static constexpr float kPercentileWarmupSec = 2.0f;
+
+// ── Advice adapter glue (JUCE-touching; kept out of the framework-free
+// Source/Analysis/AdviceAdapter.h/.cpp so Tests/ can include that header
+// without pulling JUCE in) ────────────────────────────────────────────────────
+namespace {
+audioplugins::common::analysis::PresetData toCommonPresetData (const ::PresetData& preset)
+{
+    audioplugins::common::analysis::PresetData out;
+    out.name            = preset.name.toStdString();
+    out.description     = preset.description.toStdString();
+    out.bandRmsDb        = preset.bandRmsDb;
+    out.bandMinCorr      = preset.bandMinCorr;
+    out.bandTransientDb  = preset.bandTransientDb;
+    out.overallRmsDb     = preset.overallRmsDb;
+    out.overallMinCorr   = preset.overallMinCorr;
+    return out;
+}
+} // namespace
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 static float dbToNorm (float db) noexcept
@@ -547,9 +568,6 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
     // Show placeholder only if no audio has been received since the last reset.
     // peakOverallDb holds its value after transport stops; only resets on next play.
     const float overallMax = (snap.peakOverallDbL + snap.peakOverallDbR) * 0.5f;
-    // Characteristic overall level for mixbus advice (avg of long-term average and peak-hold)
-    const float overallAvg = (snap.overallRmsDbL  + snap.overallRmsDbR)  * 0.5f;
-    const float overallDb  = (overallAvg + overallMax) * 0.5f;
     if (overallMax <= -99.f)
     {
         g.setFont   (juce::FontOptions (11.f));
@@ -558,6 +576,10 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
                      plotArea, juce::Justification::centred);
         return;
     }
+
+    const auto commonSnap   = buildAnalysisSnapshot (snap, kPercentileWarmupSec);
+    const auto commonPreset = toCommonPresetData (preset);
+    const auto advice       = audioplugins::common::analysis::deriveAdvice (commonSnap, commonPreset);
 
     // ── Row geometry (top-down within the panel) ──────────────────────────────
     const int py      = area.getY();
@@ -579,9 +601,6 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
     // ── Per-band recommendations ──────────────────────────────────────────────
     const float slotW = static_cast<float> (plotArea.getWidth()) / BandConfig::numBands;
 
-    // Release time by band index — lower bands need longer release
-    constexpr float kRelMs[BandConfig::numBands] = { 250.f, 160.f, 120.f, 100.f, 70.f, 50.f, 30.f };
-
     // EQ row sub-layout within eqH (34 px):  freq label / bar / gain+Q text
     const int freqLabelH = 11;
     const int barH       = 12;
@@ -595,26 +614,12 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
         const float innerX = slotX + 2.f;
         const float innerW = slotW - 4.f;
 
-        // Characteristic level: distribution-aware percentile blend (P50/P95) once
-        // enough data has accumulated, matching Codex's advice.cpp reference-level
-        // formula; falls back to the avg/peak blend during the warm-up window.
-        const bool  pctReady = snap.secondsSinceReset >= kPercentileWarmupSec;
-        const float avgDb  = (snap.avgRmsDbL[i]   + snap.avgRmsDbR[i])   * 0.5f;
-        const float maxDb  = (snap.peakRmsDbL[i]  + snap.peakRmsDbR[i])  * 0.5f;
-        const float refDb  = pctReady
-            ? (snap.p50RmsDb[i] + snap.p95RmsDb[i]) * 0.5f
-            : (avgDb + maxDb) * 0.5f;
-
         // ── Mastering EQ ──────────────────────────────────────────────────────
-        float eqGain = std::clamp (preset.bandRmsDb[i] - refDb, -12.f, 12.f);
-        if (std::abs (eqGain) < 0.5f) eqGain = 0.f;
-
-        // Q: broader for gentle corrections, tighter for large ones
+        const auto& bandEq = advice.eq[i];
+        const float eqGain  = bandEq.gainDb;
         const float absGain = std::abs (eqGain);
-        const float q = absGain < 3.f ? 0.7f
-                      : absGain < 6.f ? 1.0f
-                      : absGain < 9.f ? 1.4f : 2.0f;
-        const bool  isShelf = BandConfig::bandIsShelf[i];
+        const float q       = bandEq.q;
+        const bool  isShelf = bandEq.isShelf;
 
         // Frequency label
         const float   fHz     = BandConfig::bandCenterHz[i];
@@ -669,15 +674,11 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
                      juce::Justification::centred);
 
         // ── Multiband compression ─────────────────────────────────────────────
-        const float excess    = std::max (0.f, refDb - preset.bandRmsDb[i]);
-        const float ratio     = std::clamp (1.f + excess * 0.25f, 1.1f, 8.f);
-        const float thresh    = preset.bandRmsDb[i] - 3.f;
-
-        const float targetCrest = preset.bandTransientDb[i];
-        const float attackMs    = targetCrest > 16.f ? 20.f
-                                : targetCrest > 12.f ? 10.f
-                                : targetCrest > 8.f  ?  5.f : 2.f;
-        const float releaseMs   = kRelMs[i];
+        const auto& bandComp  = advice.mbComp[i];
+        const float ratio     = bandComp.ratio;
+        const float thresh    = bandComp.thresholdDb;
+        const float attackMs  = bandComp.attackMs;
+        const float releaseMs = bandComp.releaseMs;
 
         g.setFont   (juce::FontOptions (9.0f));
         g.setColour (kLabelText);
@@ -700,14 +701,12 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
     g.drawVerticalLine (overallPanel.getX(), static_cast<float> (area.getY()),
                         static_cast<float> (area.getBottom()));
 
-    const float overallExcess = std::max (0.f, overallDb - preset.overallRmsDb);
-    const float mbRatio   = std::clamp (2.f + overallExcess * 0.15f, 1.5f, 6.f);
-    const float mbThresh  = preset.overallRmsDb - 6.f;
-    const float mbAttack  = 15.f;
-    const float mbRelease = std::clamp (100.f + overallExcess * 5.f, 80.f, 300.f);
-    // Expected GR at average level → makeup compensates
-    const float expGR     = std::max (0.f, overallDb - mbThresh) * (1.f - 1.f / mbRatio);
-    const float makeup    = std::clamp (expGR + std::max (0.f, preset.overallRmsDb - overallDb), 0.f, 18.f);
+    const auto& mixbusComp = advice.mixbusComp;
+    const float mbRatio    = mixbusComp.ratio;
+    const float mbThresh   = mixbusComp.thresholdDb;
+    const float mbAttack   = mixbusComp.attackMs;
+    const float mbRelease  = mixbusComp.releaseMs;
+    const float makeup     = mixbusComp.makeupDb;
 
     const int px  = overallPanel.getX() + 4;
     const int pw  = overallPanel.getWidth() - 8;
@@ -744,9 +743,8 @@ void MixAdviceAudioProcessorEditor::drawAdvicePanel (juce::Graphics& g,
     g.drawText  ("Loudness", px, ry, pw, rh, juce::Justification::centred);
     ry += rh + 2;
 
-    const bool  lraReady     = snap.lraLu > 0.f;
-    const float lraOffset    = lraReady ? std::clamp ((snap.lraLu - 12.f) * 0.30f, -3.f, 3.f) : 0.f;
-    const float limiterTarget = preset.overallRmsDb + 3.f + lraOffset;
+    const bool  lraReady      = snap.lraLu > 0.f;
+    const float limiterTarget = advice.limiter.targetLufsApprox;
 
     drawRow ("LRA",     lraReady ? juce::String (snap.lraLu, 1) + " LU" : juce::String ("—"));
     drawRow ("Lim Tgt", juce::String (limiterTarget, 1) + " LUFS");
@@ -758,7 +756,16 @@ void MixAdviceAudioProcessorEditor::exportAdvice()
 {
     const auto snap    = processorRef.getAnalysisResult().read();
     const auto& preset = processorRef.getPresetManager().getPreset (processorRef.getCurrentProgram());
-    const juce::String md = generateMarkdown (snap, preset);
+
+    const auto commonSnap   = buildAnalysisSnapshot (snap, kPercentileWarmupSec);
+    const auto commonPreset = toCommonPresetData (preset);
+    auto       advice       = audioplugins::common::analysis::deriveAdvice (commonSnap, commonPreset);
+    // deriveAdvice() leaves AdviceSet::resonances empty by design; carry over
+    // TrueSight's own live-detected resonances (already shown in the UI's
+    // separate drawResonancePanel) so the exported report lists them too.
+    advice.resonances = buildResonancePeaks (snap);
+    const juce::String md   = juce::String (audioplugins::common::analysis::formatAdviceMarkdown (
+        commonSnap, advice, commonPreset, preset.name.toStdString()));
 
     const juce::String defaultName = juce::String ("MixAdvice_")
         + juce::String (preset.name).replace (" ", "_").replace ("(", "").replace (")", "")
@@ -778,175 +785,6 @@ void MixAdviceAudioProcessorEditor::exportAdvice()
             if (result != juce::File{})
                 result.replaceWithText (md);
         });
-}
-
-juce::String MixAdviceAudioProcessorEditor::generateMarkdown (
-    const AnalysisResult::Snapshot& snap,
-    const PresetData& preset)
-{
-    constexpr float kRelMs[BandConfig::numBands] = { 250.f, 160.f, 120.f, 100.f, 70.f, 50.f, 30.f };
-
-    // Band frequency range labels for context
-    static constexpr const char* kBandRange[BandConfig::numBands] = {
-        "< 80 Hz", "80–250 Hz", "250–500 Hz", "500 Hz–2 kHz",
-        "2–6 kHz", "6–16 kHz", "> 16 kHz"
-    };
-
-    juce::String md;
-    md << "# MixAdvice — Mastering Recommendations\n\n";
-    md << "**Preset:** " << preset.name << "  \n";
-    md << "*" << preset.description << "*\n\n";
-    md << "---\n\n";
-
-    // ── Mastering EQ ─────────────────────────────────────────────────────────
-    md << "## Mastering EQ\n\n";
-    md << "| Band | Range | Frequency | Type | Gain | Q |\n";
-    md << "|------|-------|-----------|------|------|---|\n";
-
-    const bool pctReady = snap.secondsSinceReset >= kPercentileWarmupSec;
-
-    for (size_t i = 0; i < static_cast<size_t> (BandConfig::numBands); ++i)
-    {
-        const float avgDb = (snap.avgRmsDbL[i]  + snap.avgRmsDbR[i])  * 0.5f;
-        const float maxDb = (snap.peakRmsDbL[i] + snap.peakRmsDbR[i]) * 0.5f;
-        const float refDb = pctReady
-            ? (snap.p50RmsDb[i] + snap.p95RmsDb[i]) * 0.5f
-            : (avgDb + maxDb) * 0.5f;
-
-        float eqGain = std::clamp (preset.bandRmsDb[i] - refDb, -12.f, 12.f);
-        if (std::abs (eqGain) < 0.5f) eqGain = 0.f;
-
-        const float absGain = std::abs (eqGain);
-        const float q = absGain < 3.f ? 0.7f
-                      : absGain < 6.f ? 1.0f
-                      : absGain < 9.f ? 1.4f : 2.0f;
-        const bool  isShelf = BandConfig::bandIsShelf[i];
-
-        const float fHz = BandConfig::bandCenterHz[i];
-        const juce::String freqStr = fHz >= 1000.f
-            ? juce::String (fHz / 1000.f, 1) + " kHz"
-            : juce::String ((int) fHz) + " Hz";
-
-        const juce::String gainStr = eqGain == 0.f
-            ? "flat"
-            : (eqGain > 0.f ? "+" : "") + juce::String (eqGain, 1) + " dB";
-        const juce::String typeStr = isShelf
-            ? (i == 0 ? "Low Shelf" : "High Shelf")
-            : "Bell";
-        const juce::String qStr = (isShelf || eqGain == 0.f)
-            ? "—"
-            : juce::String (q, 1);
-
-        md << "| " << BandConfig::bandNames[i]
-           << " | " << kBandRange[i]
-           << " | " << freqStr
-           << " | " << typeStr
-           << " | " << gainStr
-           << " | " << qStr
-           << " |\n";
-    }
-
-    md << "\n---\n\n";
-
-    // ── Multiband Compression ─────────────────────────────────────────────────
-    md << "## Multiband Compression\n\n";
-    md << "| Band | Range | Threshold | Ratio | Attack | Release |\n";
-    md << "|------|-------|-----------|-------|--------|---------|\n";
-
-    for (size_t i = 0; i < static_cast<size_t> (BandConfig::numBands); ++i)
-    {
-        const float avgDb = (snap.avgRmsDbL[i]  + snap.avgRmsDbR[i])  * 0.5f;
-        const float maxDb = (snap.peakRmsDbL[i] + snap.peakRmsDbR[i]) * 0.5f;
-        const float refDb = pctReady
-            ? (snap.p50RmsDb[i] + snap.p95RmsDb[i]) * 0.5f
-            : (avgDb + maxDb) * 0.5f;
-
-        const float excess  = std::max (0.f, refDb - preset.bandRmsDb[i]);
-        const float ratio   = std::clamp (1.f + excess * 0.25f, 1.1f, 8.f);
-        const float thresh  = preset.bandRmsDb[i] - 3.f;
-
-        const float tc       = preset.bandTransientDb[i];
-        const float attackMs = tc > 16.f ? 20.f : tc > 12.f ? 10.f : tc > 8.f ? 5.f : 2.f;
-
-        md << "| " << BandConfig::bandNames[i]
-           << " | " << kBandRange[i]
-           << " | " << juce::String ((int) thresh) << " dBFS"
-           << " | " << juce::String (ratio, 1) << ":1"
-           << " | " << juce::String ((int) attackMs) << " ms"
-           << " | " << juce::String ((int) kRelMs[i]) << " ms"
-           << " |\n";
-    }
-
-    md << "\n---\n\n";
-
-    // ── Mixbus Compression ────────────────────────────────────────────────────
-    md << "## Mixbus Compression\n\n";
-
-    const float overallAvg = (snap.overallRmsDbL + snap.overallRmsDbR) * 0.5f;
-    const float overallMax = (snap.peakOverallDbL + snap.peakOverallDbR) * 0.5f;
-    const float overallDb  = (overallAvg + overallMax) * 0.5f;
-
-    const float overallExcess = std::max (0.f, overallDb - preset.overallRmsDb);
-    const float mbRatio   = std::clamp (2.f + overallExcess * 0.15f, 1.5f, 6.f);
-    const float mbThresh  = preset.overallRmsDb - 6.f;
-    const float mbRelease = std::clamp (100.f + overallExcess * 5.f, 80.f, 300.f);
-    const float expGR     = std::max (0.f, overallDb - mbThresh) * (1.f - 1.f / mbRatio);
-    const float makeup    = std::clamp (expGR + std::max (0.f, preset.overallRmsDb - overallDb), 0.f, 18.f);
-
-    md << "| Parameter | Value |\n";
-    md << "|-----------|-------|\n";
-    md << "| Threshold | " << juce::String ((int) mbThresh) << " dBFS |\n";
-    md << "| Ratio | " << juce::String (mbRatio, 1) << ":1 |\n";
-    md << "| Attack | 15 ms |\n";
-    md << "| Release | " << juce::String ((int) mbRelease) << " ms |\n";
-    md << "| Makeup Gain | +" << juce::String (makeup, 1) << " dB |\n";
-
-    md << "\n---\n\n";
-
-    // ── Loudness / suggested limiter target ───────────────────────────────────
-    md << "## Loudness / Limiter\n\n";
-
-    const bool  lraReady      = snap.lraLu > 0.f;
-    const float lraOffset     = lraReady ? std::clamp ((snap.lraLu - 12.f) * 0.30f, -3.f, 3.f) : 0.f;
-    const float limiterTarget = preset.overallRmsDb + 3.f + lraOffset;
-
-    md << "| Parameter | Value |\n";
-    md << "|-----------|-------|\n";
-    md << "| LRA | " << (lraReady ? juce::String (snap.lraLu, 1) + " LU" : juce::String ("—")) << " |\n";
-    md << "| Suggested Limiter Target | " << juce::String (limiterTarget, 1) << " LUFS |\n";
-    md << "| Ceiling | -1.0 dBTP |\n";
-
-    md << "\n---\n\n";
-
-    // ── Resonance cuts ─────────────────────────────────────────────────────────
-    md << "## Resonance Cuts\n\n";
-
-    const int resonanceCount = std::clamp (snap.resonanceCount, 0, AnalysisResult::maxResonances);
-    if (resonanceCount == 0)
-    {
-        md << "No resonances detected.\n";
-    }
-    else
-    {
-        md << "| Frequency | Q | Gain |\n";
-        md << "|-----------|---|------|\n";
-        for (int i = 0; i < resonanceCount; ++i)
-        {
-            const float freqHz = snap.resonanceFreqHz[static_cast<size_t> (i)];
-            const float q      = snap.resonanceQ[static_cast<size_t> (i)];
-            const float gainDb = snap.resonanceGainDb[static_cast<size_t> (i)];
-            const juce::String freqStr = freqHz >= 1000.f
-                ? juce::String (freqHz / 1000.f, 1) + " kHz"
-                : juce::String ((int) freqHz) + " Hz";
-            md << "| " << freqStr << " | " << juce::String (q, 1)
-               << " | " << juce::String (gainDb, 1) << " dB |\n";
-        }
-    }
-
-    md << "\n---\n\n";
-    md << "*Generated by MixAdvice*\n";
-
-    return md;
 }
 
 // ── Correlation colour mapping ────────────────────────────────────────────────

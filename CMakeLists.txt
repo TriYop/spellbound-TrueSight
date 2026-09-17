@@ -5,6 +5,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# AudioPluginsCommon's static libraries (e.g. common/analysis, now pulled into
+# MixAdvice via the LoudnessAnalyser wrapper) aren't built with -fPIC by
+# default; linking their object files into the VST3/CLAP shared modules fails
+# with "recompile with -fPIC" otherwise. Must be set before FetchContent'ing
+# any of the dependencies below so it applies to their targets too.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -23,6 +30,16 @@ FetchContent_Declare(
     GIT_TAG        main
 )
 FetchContent_MakeAvailable(clap-juce-extensions)
+
+FetchContent_Declare(
+    AudioPluginsCommon
+    GIT_REPOSITORY https://github.com/TriYop/spellbound-common.git
+    GIT_TAG        v0.7.0
+)
+FetchContent_MakeAvailable(AudioPluginsCommon)
+
+enable_testing()
+add_subdirectory(Tests)
 
 file(GLOB MIXADVICE_PRESET_FILES "Presets/*.xml")
 juce_add_binary_data(MixAdviceBuiltInPresets SOURCES ${MIXADVICE_PRESET_FILES})
@@ -44,15 +61,16 @@ juce_add_plugin(MixAdvice
     NEEDS_MIDI_OUTPUT           FALSE
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    DESCRIPTION                 "Realtime mix analyzer and pre-mastering advisor"
+    DESCRIPTION                 "Spellbound TrueSight — See Through Every Mix"
 )
 
 target_sources(MixAdvice PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/Analysis/AnalyserEngine.cpp
-    Source/Analysis/LoudnessAnalyser.cpp
     Source/Analysis/ResonanceDetector.cpp
+    Source/Analysis/ResonancePeakMath.cpp
+    Source/Analysis/AdviceAdapter.cpp
     Source/Presets/PresetManager.cpp
 )
 
@@ -73,6 +91,8 @@ target_link_libraries(MixAdvice
         juce::juce_audio_plugin_client
         juce::juce_dsp
         clap_juce_extensions
+        AudioPluginsCommon::dsp
+        AudioPluginsCommon::analysis
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

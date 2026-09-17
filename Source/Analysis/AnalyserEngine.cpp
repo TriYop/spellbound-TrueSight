@@ -9,19 +9,11 @@ void AnalyserEngine::prepare (const juce::dsp::ProcessSpec& spec)
     const auto maxBlock = static_cast<int> (spec.maximumBlockSize);
     const auto nch      = static_cast<int> (spec.numChannels);
 
-    for (size_t i = 0; i < static_cast<size_t> (numCrossovers); ++i)
-    {
-        lpFilters_[i].setType (juce::dsp::LinkwitzRileyFilterType::lowpass);
-        lpFilters_[i].setCutoffFrequency (BandConfig::crossoverHz[i]);
-        lpFilters_[i].prepare (spec);
+    splitter_.prepare (static_cast<float> (sr), nch);
+    splitterInput_.assign (static_cast<size_t> (nch), std::vector<float> (static_cast<size_t> (maxBlock)));
+    splitterBands_.assign (static_cast<size_t> (BandConfig::numBands),
+        std::vector<std::vector<float>> (static_cast<size_t> (nch), std::vector<float> (static_cast<size_t> (maxBlock))));
 
-        hpFilters_[i].setType (juce::dsp::LinkwitzRileyFilterType::highpass);
-        hpFilters_[i].setCutoffFrequency (BandConfig::crossoverHz[i]);
-        hpFilters_[i].prepare (spec);
-    }
-
-    remainderBuf_.setSize (nch, maxBlock);
-    bandBuf_.setSize      (nch, maxBlock);
     monoScratch_.setSize  (1, maxBlock);
 
     const float blocksPerSec = static_cast<float> (sr) / static_cast<float> (maxBlock);
@@ -38,8 +30,7 @@ void AnalyserEngine::prepare (const juce::dsp::ProcessSpec& spec)
 
 void AnalyserEngine::reset()
 {
-    for (auto& f : lpFilters_) f.reset();
-    for (auto& f : hpFilters_) f.reset();
+    splitter_.reset();
 
     smoothRmsL_.fill   (0.f);
     smoothRmsR_.fill   (0.f);
@@ -203,31 +194,14 @@ void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
         resonance_.pushSamples (mono, nSamples);
     }
 
-    // Copy input into the running remainder buffer
     for (int ch = 0; ch < nChannels; ++ch)
-        remainderBuf_.copyFrom (ch, 0, buffer, ch, 0, nSamples);
+        std::copy (buffer.getReadPointer (ch), buffer.getReadPointer (ch) + nSamples,
+                   splitterInput_[static_cast<size_t> (ch)].begin());
 
-    // Cascaded crossover: LP extracts the current band, HP passes the remainder forward.
-    for (size_t i = 0; i < static_cast<size_t> (numCrossovers); ++i)
-    {
-        for (int ch = 0; ch < nChannels; ++ch)
-            bandBuf_.copyFrom (ch, 0, remainderBuf_, ch, 0, nSamples);
+    splitter_.process (splitterInput_, splitterBands_, nSamples);
 
-        auto bandBlock = juce::dsp::AudioBlock<float> (
-            bandBuf_.getArrayOfWritePointers(), (size_t) nChannels, (size_t) nSamples);
-        lpFilters_[i].process (juce::dsp::ProcessContextReplacing<float> (bandBlock));
-
-        auto remBlock = juce::dsp::AudioBlock<float> (
-            remainderBuf_.getArrayOfWritePointers(), (size_t) nChannels, (size_t) nSamples);
-        hpFilters_[i].process (juce::dsp::ProcessContextReplacing<float> (remBlock));
-
-        storeBand (i, bandBuf_.getReadPointer (0), bandBuf_.getReadPointer (1));
-    }
-
-    // Final band: whatever remains after all HP stages
-    storeBand (static_cast<size_t> (numCrossovers),
-               remainderBuf_.getReadPointer (0),
-               remainderBuf_.getReadPointer (1));
+    for (size_t i = 0; i < static_cast<size_t> (BandConfig::numBands); ++i)
+        storeBand (i, splitterBands_[i][0].data(), splitterBands_[i][1].data());
 
     ++intBandBlockCount_;
 
