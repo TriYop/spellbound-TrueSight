@@ -1,8 +1,6 @@
 #pragma once
 #include <array>
 #include <vector>
-#include <juce_dsp/juce_dsp.h>
-#include <juce_audio_basics/juce_audio_basics.h>
 #include "audioplugins/common/dsp/SevenBandSplitter.h"
 #include "BandConfig.h"
 #include "AnalysisResult.h"
@@ -18,8 +16,8 @@
 class AnalyserEngine
 {
 public:
-    void prepare (const juce::dsp::ProcessSpec& spec);
-    void process (const juce::AudioBuffer<float>& buffer);
+    void prepare (double sampleRate, int maxBlockSize, int numChannels);
+    void process (const float* const* channelData, int numChannels, int numSamples);
     void reset();
 
     AnalysisResult result;
@@ -77,8 +75,8 @@ private:
     double   sampleRate_        { 44100.0 };
     uint64_t samplesSinceReset_ { 0 };
 
-    // Pre-allocated mono downmix scratch buffer for the resonance detector's audio-thread push.
-    juce::AudioBuffer<float> monoScratch_;
+    // Pre-allocated mono downmix scratch buffer (was juce::AudioBuffer<float>).
+    std::vector<float> monoScratch_;
 
     // Background-thread spectral resonance detector. Declared after `result` (above) so
     // it is destroyed *before* `result` (C++ destroys members in reverse declaration

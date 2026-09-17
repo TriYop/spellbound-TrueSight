@@ -39,3 +39,14 @@ add_truesight_test(test_advice_adapter_golden
     test_advice_adapter_golden.cpp
     ${CMAKE_SOURCE_DIR}/Source/Analysis/AdviceAdapter.cpp
     AudioPluginsCommon::analysis)
+
+add_truesight_test(test_analyser_engine
+    test_analyser_engine.cpp
+    ${CMAKE_SOURCE_DIR}/Source/Analysis/AnalyserEngine.cpp
+    ${CMAKE_SOURCE_DIR}/Source/Analysis/ResonanceDetector.cpp
+    ${CMAKE_SOURCE_DIR}/Source/Analysis/ResonancePeakMath.cpp
+    AudioPluginsCommon::dsp AudioPluginsCommon::analysis
+    juce::juce_core juce::juce_dsp)
+target_compile_definitions(test_analyser_engine PRIVATE
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0)
