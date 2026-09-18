@@ -74,14 +74,27 @@ void MasteringAdvicePanel::onNanoDisplay()
     text(4.f, 50.f, line, nullptr);
     closePath();
 
-    float ry = 68.f;
+    // Belt-and-braces bound (mirrors the C1 clamp in AnalyserEngine::process()):
+    // never draw more resonance rows than actually fit inside this panel's own
+    // height, regardless of how many peaks are passed to update() -- DGL does
+    // not clip a NanoSubWidget to its bounds, so an unbounded stepping loop
+    // would paint straight past the window edge (I1, final whole-branch review).
+    constexpr float rowStart = 68.f;
+    constexpr float rowStep  = 12.f;
+    const int maxRows = h > rowStart ? static_cast<int>((h - rowStart) / rowStep) : 0;
+
+    float ry = rowStart;
+    int rowsDrawn = 0;
     for (const auto& peak : resonances_)
     {
+        if (rowsDrawn >= maxRows) break;
+
         std::snprintf(line, sizeof(line), "Cut: %.0fHz  Q:%.1f  %.1fdB", peak.freqHz, peak.q, peak.gainDb);
         beginPath();
         fillColor(DGL_NAMESPACE::Color(0xcc, 0xcc, 0xcc, 1.0f));
         text(4.f, ry, line, nullptr);
         closePath();
-        ry += 12.f;
+        ry += rowStep;
+        ++rowsDrawn;
     }
 }

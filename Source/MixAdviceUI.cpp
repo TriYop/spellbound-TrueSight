@@ -13,7 +13,13 @@ using audioplugins::common::hui::dgl::AdviceCategory;
 using audioplugins::common::presets::PresetEntry;
 
 static constexpr uint kWindowWidth  = 760;
-static constexpr uint kWindowHeight = 520;
+// Was 520, too short for fAdvicePanel below -- see fAdvicePanel's setSize() call
+// in the constructor and I1 in the final whole-branch review: with up to
+// AnalysisResult::maxResonances (8) resonance-cut rows starting at panel-local
+// y=68 and stepping 12px each (MasteringAdvicePanel::onNanoDisplay()), the panel
+// needs ~172px of height to show all of them without painting past its own
+// bottom edge (DGL does not clip a NanoSubWidget to its bounds).
+static constexpr uint kWindowHeight = 640;
 
 // Carried over from the JUCE-era PluginEditor.cpp's kPercentileWarmupSec
 // (Source/_juce_reference/PluginEditor.cpp:34) -- gates buildAnalysisSnapshot()'s
@@ -61,7 +67,12 @@ MixAdviceUI::MixAdviceUI()
 
     fAdvicePanel = std::make_unique<MasteringAdvicePanel>(this);
     fAdvicePanel->setAbsolutePos(20, 440);
-    fAdvicePanel->setSize(720, 70);
+    // 180px is enough to show the fixed header rows (per-band EQ, mixbus, LRA/
+    // limiter -- ending around panel-local y=62) plus all
+    // AnalysisResult::maxResonances (8) possible resonance-cut rows starting at
+    // y=68 and stepping 12px, without the panel's own onNanoDisplay() painting
+    // past its bottom edge. See kWindowHeight above (I1, final whole-branch review).
+    fAdvicePanel->setSize(720, 180);
 
     refreshPresetSelector();
 }
