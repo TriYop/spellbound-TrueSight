@@ -149,6 +149,18 @@ jobs:
           # checks) are also left disabled since they'd make CI depend on
           # outbound network access for no real validation benefit here.
           git clone --depth 1 https://github.com/sfztools/lv2lint /tmp/lv2lint
+          # lv2lint's meson.build auto-enables ENABLE_WRAP_TESTS/
+          # ENABLE_PTRACE_TESTS whenever the compiler supports clone(2) +
+          # struct ptrace_syscall_info -- true on GitHub's ubuntu-latest
+          # runners. Those tests single-step the plugin under ptrace, which
+          # hangs indefinitely on this runner class (reproduced: a real CI
+          # run sat on this step for the full 6h job cap and was cancelled,
+          # not merely failed -- `continue-on-error` on the next step does
+          # NOT protect against a hang, only against a clean failure).
+          # Strip the whole `if cc.has_function('clone', ...)` block so
+          # neither define is ever set, matching the workaround already
+          # verified locally against this exact plugin build.
+          sed -i '/if cc.has_function(.clone., args/,/^endif$/d' /tmp/lv2lint/meson.build
           meson setup -Donline-tests=disabled -Delf-tests=enabled -Dx11-tests=disabled /tmp/lv2lint/build /tmp/lv2lint
           ninja -C /tmp/lv2lint/build
 
@@ -163,6 +175,9 @@ jobs:
         # Non-blocking until/unless that's done upstream, so a stale
         # DPF-wide characteristic can't perpetually fail CI here.
         continue-on-error: true
+        # Belt-and-braces against a future hang even with the ptrace-tests
+        # workaround above: this step normally completes in seconds.
+        timeout-minutes: 5
         run: |
           # lv2lint needs the plugin discoverable via LV2_PATH (it scans
           # each entry's immediate subdirectories for bundles) rather than
