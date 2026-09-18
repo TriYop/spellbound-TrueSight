@@ -49,11 +49,42 @@ else()
     set(TRUESIGHT_ATOMIC_LIB "")
 endif()
 
+# ── Built-in presets, embedded at configure time ────────────────────────────
+# Framework-free replacement for juce_add_binary_data: generates a small
+# EmbeddedPresets.h/.cpp pair (name -> raw XML text) under
+# ${CMAKE_BINARY_DIR}/generated so PresetManager can compile in the built-in
+# presets without linking juce_core. Runs at *configure* time, so a
+# new/edited Presets/*.xml requires a re-configure, not just a rebuild --
+# acceptable since presets already required a rebuild under the old
+# juce_add_binary_data too.
+file(GLOB MIXADVICE_PRESET_FILES "Presets/*.xml")
+
+set(_EMBED_CPP "${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp")
+set(_EMBED_CPP_CONTENT "#include \"EmbeddedPresets.h\"\n\nnamespace {\n")
+set(_EMBED_ENTRIES "")
+foreach(_preset_file ${MIXADVICE_PRESET_FILES})
+    get_filename_component(_name ${_preset_file} NAME_WE)
+    # Preset file stems contain hyphens (e.g. "electro-90"), which aren't
+    # valid in a C++ identifier -- sanitize for the generated variable name
+    # while keeping the original stem as the map's string key.
+    string(REPLACE "-" "_" _safe_name "${_name}")
+    file(READ ${_preset_file} _xml_content)
+    # Raw string delimiter ")XML(" doesn't appear in any file under Presets/,
+    # so no escaping of the XML body itself is needed.
+    string(APPEND _EMBED_CPP_CONTENT "constexpr const char* k${_safe_name} = R\"XML(${_xml_content})XML\";\n")
+    string(APPEND _EMBED_ENTRIES "        { \"${_name}\", k${_safe_name} },\n")
+endforeach()
+string(APPEND _EMBED_CPP_CONTENT "\n} // namespace\n\n")
+string(APPEND _EMBED_CPP_CONTENT "const std::vector<EmbeddedPreset>& getEmbeddedPresets()\n{\n")
+string(APPEND _EMBED_CPP_CONTENT "    static const std::vector<EmbeddedPreset> presets = {\n${_EMBED_ENTRIES}    };\n")
+string(APPEND _EMBED_CPP_CONTENT "    return presets;\n}\n")
+file(WRITE ${_EMBED_CPP} "${_EMBED_CPP_CONTENT}")
+
+file(WRITE "${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.h"
+"#pragma once\n#include <string>\n#include <vector>\n\nstruct EmbeddedPreset { const char* name; const char* xmlText; };\nconst std::vector<EmbeddedPreset>& getEmbeddedPresets();\n")
+
 enable_testing()
 add_subdirectory(Tests)
-
-file(GLOB MIXADVICE_PRESET_FILES "Presets/*.xml")
-juce_add_binary_data(MixAdviceBuiltInPresets SOURCES ${MIXADVICE_PRESET_FILES})
 
 set(MIXADVICE_FORMATS VST3 Standalone)
 if(APPLE)
@@ -83,6 +114,7 @@ target_sources(MixAdvice PRIVATE
     Source/Analysis/ResonancePeakMath.cpp
     Source/Analysis/AdviceAdapter.cpp
     Source/Presets/PresetManager.cpp
+    ${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp
 )
 
 target_compile_definitions(MixAdvice PUBLIC
@@ -91,13 +123,12 @@ target_compile_definitions(MixAdvice PUBLIC
     JUCE_VST3_CAN_REPLACE_VST2=0
 )
 
-target_include_directories(MixAdvice PRIVATE Source/)
+target_include_directories(MixAdvice PRIVATE Source/ ${CMAKE_BINARY_DIR}/generated)
 
 target_compile_features(MixAdvice PUBLIC cxx_std_20)
 
 target_link_libraries(MixAdvice
     PRIVATE
-        MixAdviceBuiltInPresets
         juce::juce_audio_utils
         juce::juce_audio_plugin_client
         juce::juce_dsp

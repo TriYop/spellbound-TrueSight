@@ -56,3 +56,10 @@ add_truesight_test(test_analyser_engine
     ${CMAKE_SOURCE_DIR}/Source/Analysis/ResonanceWorker.cpp
     ${CMAKE_SOURCE_DIR}/Source/Analysis/ResonancePeakMath.cpp
     AudioPluginsCommon::dsp AudioPluginsCommon::analysis AudioPluginsCommon::io ${TRUESIGHT_ATOMIC_LIB})
+
+add_truesight_test(test_preset_manager
+    test_preset_manager.cpp
+    ${CMAKE_SOURCE_DIR}/Source/Presets/PresetManager.cpp
+    ${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp
+    AudioPluginsCommon::analysis)
+target_include_directories(test_preset_manager PRIVATE ${CMAKE_BINARY_DIR}/generated)
