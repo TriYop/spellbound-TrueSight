@@ -1,4 +1,4 @@
-#include "MixAdviceUI.h"
+#include "TrueSightUI.h"
 #include "audioplugins/common/presets/PresetBrowser.h"   // for PresetEntry only
 
 #include <algorithm>
@@ -27,9 +27,9 @@ static constexpr uint kWindowHeight = 640;
 // have accumulated since the last resetPeaks().
 static constexpr float kPercentileWarmupSec = 2.0f;
 
-MixAdviceUI::MixAdviceUI()
+TrueSightUI::TrueSightUI()
     : UI(kWindowWidth, kWindowHeight)
-    , fPluginPtr(static_cast<MixAdvicePluginAdapter*>(getPluginInstancePointer()))
+    , fPluginPtr(static_cast<TrueSightPluginAdapter*>(getPluginInstancePointer()))
 {
     // Registers DPF's built-in NANOVG_DEJAVU_SANS_TTF font with this UI's
     // NanoVG context. PresetSelector::onNanoDisplay() calls
@@ -77,7 +77,7 @@ MixAdviceUI::MixAdviceUI()
     refreshPresetSelector();
 }
 
-void MixAdviceUI::refreshPresetSelector()
+void TrueSightUI::refreshPresetSelector()
 {
     const auto& mgr = fPluginPtr->getPresetManager();
     std::vector<PresetEntry> entries;
@@ -88,13 +88,13 @@ void MixAdviceUI::refreshPresetSelector()
     fPresetSelector->setCurrentIndex(static_cast<int>(fPluginPtr->getParameterValue(kParameterPresetIndex)));
 }
 
-void MixAdviceUI::parameterChanged(const uint32_t index, const float value)
+void TrueSightUI::parameterChanged(const uint32_t index, const float value)
 {
     if (index == kParameterPresetIndex)
         fPresetSelector->setCurrentIndex(static_cast<int>(value));
 }
 
-void MixAdviceUI::uiIdle()
+void TrueSightUI::uiIdle()
 {
     const auto snap = fPluginPtr->getAnalysisResult().read();
 
@@ -133,8 +133,8 @@ void MixAdviceUI::uiIdle()
     }
 }
 
-void MixAdviceUI::onNanoDisplay() {}
+void TrueSightUI::onNanoDisplay() {}
 
-UI* createUI() { return new MixAdviceUI(); }
+UI* createUI() { return new TrueSightUI(); }
 
 END_NAMESPACE_DISTRHO

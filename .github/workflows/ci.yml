@@ -67,7 +67,7 @@ jobs:
       # yet. Add validator steps for those platforms once their builds are
       # verified, not before.
       #
-      # Both validators need a real GL context to load-and-close MixAdvice's
+      # Both validators need a real GL context to load-and-close TrueSight's
       # UI (NanoVG/DGL -- SpectrumMeter + 7 CorrelationGauges +
       # MasteringAdvicePanel), even headlessly, hence xvfb-run below. The
       # UI's extra visual complexity relative to e.g. Hex doesn't change
@@ -99,7 +99,7 @@ jobs:
           # exercise real audio/automation/state-save/state-reload paths,
           # short of the higher levels (which add fuzzing and are known to
           # trip up plenty of otherwise-compliant plugins).
-          xvfb-run -a ./pluginval --strictness-level 5 --validate build/bin/MixAdvice.vst3
+          xvfb-run -a ./pluginval --strictness-level 5 --validate build/bin/TrueSight.vst3
 
       - name: Download clap-validator
         if: runner.os == 'Linux'
@@ -126,7 +126,7 @@ jobs:
           # `validate <path>` confirmed against clap-validator's real
           # `--help`/`validate --help` output (run locally against this
           # same build).
-          xvfb-run -a ./clap-validator validate build/bin/MixAdvice.clap
+          xvfb-run -a ./clap-validator validate build/bin/TrueSight.clap
 
       - name: Install lv2lint build dependencies
         if: runner.os == 'Linux'
@@ -166,12 +166,12 @@ jobs:
 
       - name: Validate LV2 with lv2lint
         if: runner.os == 'Linux'
-        # lv2lint's one remaining finding against MixAdvice (a Plugin Class
+        # lv2lint's one remaining finding against TrueSight (a Plugin Class
         # FAIL: rdf:type includes doap:Project alongside lv2:Plugin) is baked
         # unconditionally into DPF's own LV2 TTL generator itself
         # (distrho/src/DistrhoPluginLV2export.cpp, the
         # "a lv2:Plugin, doap:Project ;" lines) -- every DPF-based LV2
-        # plugin emits this, and fixing it means patching DPF, not MixAdvice.
+        # plugin emits this, and fixing it means patching DPF, not TrueSight.
         # Non-blocking until/unless that's done upstream, so a stale
         # DPF-wide characteristic can't perpetually fail CI here.
         continue-on-error: true
@@ -186,10 +186,10 @@ jobs:
           # previously-installed bundle instead of this build's output.
           # /usr/lib/lv2 is included alongside build/bin so lilv can still
           # resolve the core LV2 spec bundles (ui.lv2, urid.lv2, etc.)
-          # needed to check MixAdvice's UI extension usage.
+          # needed to check TrueSight's UI extension usage.
           # -s lv2_generate_ttl whitelists the one exported symbol DPF adds
           # deliberately (its own --generate-ttl support), which lv2lint's
           # ELF symbol-visibility test otherwise flags as superfluous.
           export LV2_PATH="/usr/lib/lv2:${GITHUB_WORKSPACE}/build/bin"
           export LD_PRELOAD="/tmp/lv2lint/build/lv2lint.so"
-          /tmp/lv2lint/build/lv2lint.bin -s lv2_generate_ttl "https://spellbound.audio/plugins/mixadvice"
+          /tmp/lv2lint/build/lv2lint.bin -s lv2_generate_ttl "https://spellbound.audio/plugins/truesight"

@@ -8,16 +8,16 @@ START_NAMESPACE_DISTRHO
 
 enum Parameters { kParameterPresetIndex, kParameterCount };
 
-class MixAdvicePluginAdapter : public Plugin
+class TrueSightPluginAdapter : public Plugin
 {
 public:
-    MixAdvicePluginAdapter();
+    TrueSightPluginAdapter();
 
 protected:
-    const char* getLabel() const override { return "MixAdvice"; }
+    const char* getLabel() const override { return "TrueSight"; }
     const char* getDescription() const override { return "Realtime mix analyzer and pre-mastering advisor"; }
     const char* getMaker() const override { return "Spellbound"; }
-    const char* getLicense() const override { return "https://spellbound.audio/plugins/mixadvice#license"; }
+    const char* getLicense() const override { return "https://spellbound.audio/plugins/truesight#license"; }
     uint32_t getVersion() const override { return d_version(0, 2, 0); }
 
     void initParameter(uint32_t index, Parameter& parameter) override;
@@ -45,14 +45,14 @@ public:
 
     // Overrides Plugin's protected getParameterValue()/setParameterValue(),
     // re-declared public here (legal -- access control is per declaring
-    // class, and a derived class may broaden it): MixAdviceUI needs to read/
+    // class, and a derived class may broaden it): TrueSightUI needs to read/
     // write the preset-index parameter directly through the
     // DISTRHO_PLUGIN_WANT_DIRECT_ACCESS pointer (see Common's PresetSelector
-    // onIndexSelected handler in MixAdviceUI.cpp), the same direct-access
+    // onIndexSelected handler in TrueSightUI.cpp), the same direct-access
     // idiom HexPluginAdapter's public getInputLevel()/getOutputLevel() use
     // for meters. Task 6's brief only documented the three accessors above as
     // its public surface; broadening these two is this task's fix for that
-    // gap once MixAdviceUI.cpp's actual call sites needed it.
+    // gap once TrueSightUI.cpp's actual call sites needed it.
     float getParameterValue(uint32_t index) const override;
     void setParameterValue(uint32_t index, float value) override;
 
@@ -63,7 +63,7 @@ private:
     std::atomic<bool> isPlaying_ { false };
     AnalyserEngine analyser_;
 
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixAdvicePluginAdapter)
+    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrueSightPluginAdapter)
 };
 
 END_NAMESPACE_DISTRHO

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove MixAdvice from all known install locations.
+# Remove TrueSight from all known install locations.
 set -euo pipefail
 
 removed=0
@@ -13,22 +13,22 @@ remove() {
     fi
 }
 
-echo "Uninstalling MixAdvice..."
+echo "Uninstalling TrueSight..."
 
 # User locations
-remove "${HOME}/.vst3/MixAdvice.vst3"
-remove "${HOME}/.clap/MixAdvice.clap"
-remove "${HOME}/.lv2/MixAdvice.lv2"
+remove "${HOME}/.vst3/TrueSight.vst3"
+remove "${HOME}/.clap/TrueSight.clap"
+remove "${HOME}/.lv2/TrueSight.lv2"
 
 # System locations (silently skip if no permission)
 if [[ $EUID -eq 0 ]]; then
-    remove "/usr/lib/vst3/MixAdvice.vst3"
-    remove "/usr/lib/clap/MixAdvice.clap"
-    remove "/usr/lib/lv2/MixAdvice.lv2"
+    remove "/usr/lib/vst3/TrueSight.vst3"
+    remove "/usr/lib/clap/TrueSight.clap"
+    remove "/usr/lib/lv2/TrueSight.lv2"
 else
-    for path in "/usr/lib/vst3/MixAdvice.vst3" \
-                "/usr/lib/clap/MixAdvice.clap" \
-                "/usr/lib/lv2/MixAdvice.lv2"; do
+    for path in "/usr/lib/vst3/TrueSight.vst3" \
+                "/usr/lib/clap/TrueSight.clap" \
+                "/usr/lib/lv2/TrueSight.lv2"; do
         if [[ -e "$path" ]]; then
             echo "  Skipping $path (re-run with sudo to remove)"
         fi

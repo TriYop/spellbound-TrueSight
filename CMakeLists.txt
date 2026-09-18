@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MixAdvice VERSION 0.2.0)
+project(TrueSight VERSION 0.2.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -69,12 +69,12 @@ endif()
 # new/edited Presets/*.xml requires a re-configure, not just a rebuild --
 # acceptable since presets already required a rebuild under the old
 # juce_add_binary_data too. Unchanged from Task 4.
-file(GLOB MIXADVICE_PRESET_FILES "Presets/*.xml")
+file(GLOB TRUESIGHT_PRESET_FILES "Presets/*.xml")
 
 set(_EMBED_CPP "${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp")
 set(_EMBED_CPP_CONTENT "#include \"EmbeddedPresets.h\"\n\nnamespace {\n")
 set(_EMBED_ENTRIES "")
-foreach(_preset_file ${MIXADVICE_PRESET_FILES})
+foreach(_preset_file ${TRUESIGHT_PRESET_FILES})
     get_filename_component(_name ${_preset_file} NAME_WE)
     # Preset file stems contain hyphens (e.g. "electro-90"), which aren't
     # valid in a C++ identifier -- sanitize for the generated variable name
@@ -95,14 +95,14 @@ file(WRITE ${_EMBED_CPP} "${_EMBED_CPP_CONTENT}")
 file(WRITE "${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.h"
 "#pragma once\n#include <string>\n#include <vector>\n\nstruct EmbeddedPreset { const char* name; const char* xmlText; };\nconst std::vector<EmbeddedPreset>& getEmbeddedPresets();\n")
 
-set(MIXADVICE_DPF_TARGETS vst3 clap lv2)
+set(TRUESIGHT_DPF_TARGETS vst3 clap lv2)
 if(APPLE)
-    list(APPEND MIXADVICE_DPF_TARGETS au)
+    list(APPEND TRUESIGHT_DPF_TARGETS au)
 endif()
 
 # Task 5 deliberately omitted UI_TYPE/FILES_UI here (no GUI sources existed
 # yet -- see git history for that task's full comment explaining DPF's
-# graceful UI-less fallback). Task 7 added Source/MixAdviceUI.cpp as the
+# graceful UI-less fallback). Task 7 added Source/TrueSightUI.cpp as the
 # plugin's first UI translation unit; Task 8 (this one) adds
 # Source/UI/MasteringAdvicePanel.cpp to the same FILES_UI list.
 #
@@ -110,11 +110,11 @@ endif()
 # its generated EmbeddedPresets.cpp) live in FILES_COMMON, not FILES_DSP:
 # DPF's <name>-ui static lib links PUBLIC against <name> (the FILES_COMMON
 # lib) but NOT against <name>-dsp, so a symbol only compiled into FILES_DSP
-# is invisible to the UI's link step. MixAdviceUI.cpp (Task 8) is the first
+# is invisible to the UI's link step. TrueSightUI.cpp (Task 8) is the first
 # UI-side caller of buildAnalysisSnapshot()/buildResonancePeaks(), which
 # surfaced this for AdviceAdapter.cpp -- see DPF's cmake/DPF-plugin.cmake,
 # function dpf_add_plugin. The final whole-branch review (I4) found the same
-# bug class in PresetManager.cpp: MixAdviceUI::uiIdle() reads the preset list
+# bug class in PresetManager.cpp: TrueSightUI::uiIdle() reads the preset list
 # every tick via getNumPresets()/getPreset(), which only happened to link
 # because those two are defined inline in PresetManager.h -- findByName(),
 # refresh() and getUserPresetsDir() are out-of-line and would have reproduced
@@ -122,24 +122,24 @@ endif()
 # forward: anything the UI can reach non-virtually and non-inline must be in
 # FILES_COMMON, not FILES_DSP, regardless of which "side" it conceptually
 # belongs to.
-dpf_add_plugin(MixAdvice
-    TARGETS ${MIXADVICE_DPF_TARGETS}
+dpf_add_plugin(TrueSight
+    TARGETS ${TRUESIGHT_DPF_TARGETS}
     UI_TYPE opengl
     FILES_COMMON
         Source/Analysis/AdviceAdapter.cpp
         Source/Presets/PresetManager.cpp
         ${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp
     FILES_DSP
-        Source/MixAdvicePluginAdapter.cpp
+        Source/TrueSightPluginAdapter.cpp
         Source/Analysis/AnalyserEngine.cpp
         Source/Analysis/ResonanceWorker.cpp
         Source/Analysis/ResonancePeakMath.cpp
     FILES_UI
-        Source/MixAdviceUI.cpp
+        Source/TrueSightUI.cpp
         Source/UI/MasteringAdvicePanel.cpp
 )
 
-target_include_directories(MixAdvice PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${CMAKE_BINARY_DIR}/generated")
+target_include_directories(TrueSight PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${CMAKE_BINARY_DIR}/generated")
 
 # DPF's dpf_add_plugin() unconditionally compiles dgl/src/pugl.cpp's inlined
 # WebViewImpl.cpp (a DPF bug: USE_FILE_BROWSER/USE_WEB_VIEW are forwarded to
@@ -147,7 +147,7 @@ target_include_directories(MixAdvice PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source"
 # strings -- see Hex/CMakeLists.txt's identical block for the full citation),
 # which uses the GNU `typeof` extension and fails to compile under strict ISO
 # C++ (our CMAKE_CXX_EXTENSIONS OFF default). Carried over verbatim from Hex,
-# which hit and fixed this first. Must come after dpf_add_plugin(MixAdvice
+# which hit and fixed this first. Must come after dpf_add_plugin(TrueSight
 # ...) -- that call is what lazily creates the dgl-opengl target in the first
 # place (see the ORDERING note on the FetchContent_MakeAvailable(AudioPluginsCommon)
 # call below for the same dependency).
@@ -162,7 +162,7 @@ endif()
 # fails with "recompile with -fPIC" otherwise. Must be set before
 # FetchContent_MakeAvailable(AudioPluginsCommon) below so it applies to its
 # targets too. (Ordering note, same as Hex/CMakeLists.txt: this must come
-# *after* dpf_add_plugin(MixAdvice ...), not merely after
+# *after* dpf_add_plugin(TrueSight ...), not merely after
 # FetchContent_MakeAvailable(dpf) -- DPF creates its own targets with PIC set
 # directly, so this variable only needs to be visible in time for Common's
 # add_subdirectory below.)
@@ -196,13 +196,13 @@ FetchContent_Declare(AudioPluginsCommon
 )
 FetchContent_MakeAvailable(AudioPluginsCommon)
 
-# Linked into `MixAdvice-ui` rather than `MixAdvice`: dpf_add_plugin() splits
-# the plugin into a common `MixAdvice` static lib plus `MixAdvice-dsp` /
-# `MixAdvice-ui` static libs, and MixAdviceUI.cpp (the only consumer of these
-# widgets) lives in `MixAdvice-ui`. Linking PRIVATE here (not PUBLIC) keeps the
+# Linked into `TrueSight-ui` rather than `TrueSight`: dpf_add_plugin() splits
+# the plugin into a common `TrueSight` static lib plus `TrueSight-dsp` /
+# `TrueSight-ui` static libs, and TrueSightUI.cpp (the only consumer of these
+# widgets) lives in `TrueSight-ui`. Linking PRIVATE here (not PUBLIC) keeps the
 # GL/UI library out of the DSP-only LV2 binary, same rationale as Hex-ui's
 # identical line.
-target_link_libraries(MixAdvice-ui PRIVATE AudioPluginsCommon::hui_dgl AudioPluginsCommon::presets)
+target_link_libraries(TrueSight-ui PRIVATE AudioPluginsCommon::hui_dgl AudioPluginsCommon::presets)
 
 # TrueSight keeps its own Tests/CMakeLists.txt subdirectory convention from
 # Stage 4A (unlike Hex, whose tests are flat add_executable()s in its
@@ -211,7 +211,7 @@ target_link_libraries(MixAdvice-ui PRIVATE AudioPluginsCommon::hui_dgl AudioPlug
 enable_testing()
 add_subdirectory(Tests)
 
-target_link_libraries(MixAdvice PUBLIC
+target_link_libraries(TrueSight PUBLIC
     AudioPluginsCommon::dsp
     AudioPluginsCommon::analysis
     AudioPluginsCommon::io
@@ -224,30 +224,30 @@ endif()
 
 set(_BIN "${CMAKE_BINARY_DIR}/bin")
 
-install(DIRECTORY  "${_BIN}/MixAdvice.vst3"
+install(DIRECTORY  "${_BIN}/TrueSight.vst3"
         DESTINATION VST3
         COMPONENT   Runtime
         USE_SOURCE_PERMISSIONS)
 
 if(APPLE)
-    install(DIRECTORY  "${_BIN}/MixAdvice.clap"
+    install(DIRECTORY  "${_BIN}/TrueSight.clap"
             DESTINATION CLAP
             COMPONENT   Runtime
             USE_SOURCE_PERMISSIONS)
 else()
-    install(FILES      "${_BIN}/MixAdvice.clap"
+    install(FILES      "${_BIN}/TrueSight.clap"
             DESTINATION CLAP
             COMPONENT   Runtime
             PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
                         GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 endif()
 
-install(DIRECTORY  "${_BIN}/MixAdvice.lv2"
+install(DIRECTORY  "${_BIN}/TrueSight.lv2"
         DESTINATION LV2
         COMPONENT   Runtime
         USE_SOURCE_PERMISSIONS)
 
-install(FILES      ${MIXADVICE_PRESET_FILES}
+install(FILES      ${TRUESIGHT_PRESET_FILES}
         DESTINATION Presets
         COMPONENT   Runtime)
 
@@ -257,12 +257,12 @@ install(PROGRAMS   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.sh"
         COMPONENT   Runtime)
 
 set(CPACK_GENERATOR                 TGZ)
-set(CPACK_PACKAGE_NAME              MixAdvice)
+set(CPACK_PACKAGE_NAME              TrueSight)
 set(CPACK_PACKAGE_VENDOR            Spellbound)
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Realtime mix analyzer and pre-mastering advisor")
 set(CPACK_PACKAGE_VERSION           ${PROJECT_VERSION})
 set(CPACK_SYSTEM_NAME               linux-x86_64)
-set(CPACK_PACKAGE_FILE_NAME         "MixAdvice-${PROJECT_VERSION}-linux-x86_64")
+set(CPACK_PACKAGE_FILE_NAME         "TrueSight-${PROJECT_VERSION}-linux-x86_64")
 set(CPACK_PACKAGING_INSTALL_PREFIX  "")
 set(CPACK_STRIP_FILES               TRUE)
 set(CPACK_PACKAGE_CHECKSUM          SHA256)
