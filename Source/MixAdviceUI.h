@@ -2,6 +2,8 @@
 #include "DistrhoUI.hpp"
 #include "MixAdvicePluginAdapter.h"
 #include "Analysis/BandConfig.h"
+#include "Analysis/AdviceAdapter.h"
+#include "UI/MasteringAdvicePanel.h"
 #include "audioplugins/common/hui/dgl/SpectrumMeter.h"
 #include "audioplugins/common/hui/dgl/CorrelationGauge.h"
 #include "audioplugins/common/hui/dgl/PresetSelector.h"
@@ -30,6 +32,7 @@ private:
     std::array<std::unique_ptr<audioplugins::common::hui::dgl::CorrelationGauge>, BandConfig::numBands> fCorrelationGauges;
     std::unique_ptr<audioplugins::common::hui::dgl::PresetSelector> fPresetSelector;
     std::unique_ptr<audioplugins::common::hui::dgl::AdviceLabel> fWarmupLabel;
+    std::unique_ptr<MasteringAdvicePanel> fAdvicePanel;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixAdviceUI)
 };

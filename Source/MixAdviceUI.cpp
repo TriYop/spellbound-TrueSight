@@ -15,6 +15,12 @@ using audioplugins::common::presets::PresetEntry;
 static constexpr uint kWindowWidth  = 760;
 static constexpr uint kWindowHeight = 520;
 
+// Carried over from the JUCE-era PluginEditor.cpp's kPercentileWarmupSec
+// (Source/_juce_reference/PluginEditor.cpp:34) -- gates buildAnalysisSnapshot()'s
+// use of the percentile (p50/p95) bands until this many seconds of playback
+// have accumulated since the last resetPeaks().
+static constexpr float kPercentileWarmupSec = 2.0f;
+
 MixAdviceUI::MixAdviceUI()
     : UI(kWindowWidth, kWindowHeight)
     , fPluginPtr(static_cast<MixAdvicePluginAdapter*>(getPluginInstancePointer()))
@@ -52,6 +58,10 @@ MixAdviceUI::MixAdviceUI()
     fWarmupLabel->setSize(720, 28);
     fWarmupLabel->setCategory(AdviceCategory::WARNING);
     fWarmupLabel->setText("Play audio to compute mastering recommendations");
+
+    fAdvicePanel = std::make_unique<MasteringAdvicePanel>(this);
+    fAdvicePanel->setAbsolutePos(20, 440);
+    fAdvicePanel->setSize(720, 70);
 
     refreshPresetSelector();
 }
@@ -97,6 +107,19 @@ void MixAdviceUI::uiIdle()
 
     const float overallMax = (snap.peakOverallDbL + snap.peakOverallDbR) * 0.5f;
     fWarmupLabel->setVisible(overallMax <= -99.f);
+
+    if (overallMax > -99.f)
+    {
+        const auto commonSnap = buildAnalysisSnapshot(snap, kPercentileWarmupSec);
+        const auto advice = audioplugins::common::analysis::deriveAdvice(commonSnap, preset);
+        auto resonances = buildResonancePeaks(snap);
+        fAdvicePanel->setVisible(true);
+        fAdvicePanel->update(advice, resonances, snap.lraLu);
+    }
+    else
+    {
+        fAdvicePanel->setVisible(false);
+    }
 }
 
 void MixAdviceUI::onNanoDisplay() {}

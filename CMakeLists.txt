@@ -102,23 +102,31 @@ endif()
 
 # Task 5 deliberately omitted UI_TYPE/FILES_UI here (no GUI sources existed
 # yet -- see git history for that task's full comment explaining DPF's
-# graceful UI-less fallback). Task 7 (this one) adds Source/MixAdviceUI.cpp as
-# the plugin's first UI translation unit; Task 8 adds
-# Source/UI/MasteringAdvicePanel.cpp to the same FILES_UI list once it exists
-# -- not added yet, same "don't build ahead" discipline Task 5 followed.
+# graceful UI-less fallback). Task 7 added Source/MixAdviceUI.cpp as the
+# plugin's first UI translation unit; Task 8 (this one) adds
+# Source/UI/MasteringAdvicePanel.cpp to the same FILES_UI list.
+#
+# Source/Analysis/AdviceAdapter.cpp lives in FILES_COMMON, not FILES_DSP:
+# DPF's <name>-ui static lib links PUBLIC against <name> (the FILES_COMMON
+# lib) but NOT against <name>-dsp, so a symbol only compiled into FILES_DSP
+# is invisible to the UI's link step. MixAdviceUI.cpp (Task 8) is the first
+# UI-side caller of buildAnalysisSnapshot()/buildResonancePeaks(), which
+# surfaced this -- see DPF's cmake/DPF-plugin.cmake, function dpf_add_plugin.
 dpf_add_plugin(MixAdvice
     TARGETS ${MIXADVICE_DPF_TARGETS}
     UI_TYPE opengl
+    FILES_COMMON
+        Source/Analysis/AdviceAdapter.cpp
     FILES_DSP
         Source/MixAdvicePluginAdapter.cpp
         Source/Analysis/AnalyserEngine.cpp
         Source/Analysis/ResonanceWorker.cpp
         Source/Analysis/ResonancePeakMath.cpp
-        Source/Analysis/AdviceAdapter.cpp
         Source/Presets/PresetManager.cpp
         ${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp
     FILES_UI
         Source/MixAdviceUI.cpp
+        Source/UI/MasteringAdvicePanel.cpp
 )
 
 target_include_directories(MixAdvice PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${CMAKE_BINARY_DIR}/generated")
