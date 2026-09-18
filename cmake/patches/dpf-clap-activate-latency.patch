@@ -1,0 +1,90 @@
+Fix PluginCLAP::activate() never reporting the plugin's initial latency
+
+Generated against DPF commit 4238e1c7f0351bbe488d79f0899c540543ac7583
+("Merge branch 'develop'", the commit pinned by AUDIOPLUGINS_DPF_GIT_TAG in
+Hex/CMakeLists.txt). File: distrho/src/DistrhoPluginCLAP.cpp.
+
+WHAT IS BROKEN
+--------------
+The CLAP latency extension's contract (clap/ext/latency.h) is explicit:
+
+    // Tell the host that the latency changed.
+    // The latency is only allowed to change if the plugin is deactivated.
+    // If the plugin is activated, call host->request_restart()
+    // [main-thread]
+    void (*changed)(const clap_host_t *host);
+
+DPF's PluginCLAP::deactivate() honors this correctly -- it calls
+checkForLatencyChanges(false, true) + reportLatencyChangeIfNeeded()
+synchronously before returning, which is legal because the plugin is (about
+to be) deactivated and deactivate() itself runs on the main thread.
+
+PluginCLAP::activate(), the other place a plugin naturally first learns its
+real latency (many plugins, including Hex, only know the sample rate --
+and therefore their latency in samples -- once activate() provides it),
+calls neither. Nothing reports the initial 0 -> real-latency transition
+while still inside activate()'s call stack, where doing so directly would
+be legal (the plugin isn't "activated" yet as far as the host's bookkeeping
+about the *previous* latency value is concerned -- this is the standard
+place essentially every other CLAP plugin wrapper reports first latency).
+
+Instead, the first call to checkForLatencyChanges() only happens later, from
+inside process()/flushParameters() (checkForLatencyChanges(true, false) at
+the end of process(), or checkForLatencyChanges(active, !active) in
+flushParameters()) -- by which point the plugin genuinely *is* active. Since
+"active" is true there, DPF correctly avoids calling changed() directly
+(per the spec, it isn't allowed to while active) and instead defers via
+fLatencyChanged=true, reported later from onMainThread(). But that deferred
+report itself still calls host->latency->changed() -- just now from outside
+activate(), while the plugin is active, which is exactly the case the CLAP
+spec says must use request_restart() instead. clap-validator's
+transport-null/transport-fuzz/transport-fuzz-sample-accurate tests catch
+this via their embedded clap_host_latency::changed hook, which asserts it
+is only ever called from within clap_plugin::activate().
+
+THE FIX
+-------
+Call checkForLatencyChanges(true, true) + reportLatencyChangeIfNeeded()
+at the end of activate(), mirroring deactivate()'s existing two-line
+pattern (isActive=true since we just activated; fromMainThread=true since
+CLAP's activate() is main-thread-only, like deactivate()). This reports the
+plugin's real initial latency synchronously, from within activate() itself,
+which is legal per the spec and matches deactivate()'s already-correct
+handling of the equivalent transition.
+
+VERIFICATION
+------------
+clap-validator 0.4.1 against Hex.clap, before this patch (but with the
+state-chunked-read patch from dpf-clap-state-chunked-read.patch already
+applied): 44 tests run, 13 passed, 19 failed. All 19 failures were
+transport-null/transport-fuzz/transport-fuzz-sample-accurate (repeated
+across parametrized configurations), each failing with:
+
+    clap_host_latency::changed
+    Must only be called within 'clap_plugin::activate'
+
+After this patch: those three tests all pass (verified by name, not just
+count). 4 unrelated pre-existing failures remain (process-varying-sample-
+rates producing `inf` at low sample rates, param-set-events/param-set-no-
+cookies flush()-vs-process() mismatch on the output-only level parameters,
+param-set-wrong-namespace not validating the event namespace ID) -- none
+of those involve latency at all; they are separate, not-yet-investigated
+issues tracked in Hex/CLAUDE.md, not caused or masked by this patch.
+
+Not reported upstream yet -- that is a separate, deliberate decision, same
+as dpf-clap-state-chunked-read.patch.
+
+diff --git a/distrho/src/DistrhoPluginCLAP.cpp b/distrho/src/DistrhoPluginCLAP.cpp
+--- a/distrho/src/DistrhoPluginCLAP.cpp
++++ b/distrho/src/DistrhoPluginCLAP.cpp
+@@ -826,6 +826,10 @@ public:
+         fPlugin.setSampleRate(sampleRate, true);
+         fPlugin.setBufferSize(maxFramesCount, true);
+         fPlugin.activate();
++       #if DISTRHO_PLUGIN_WANT_LATENCY
++        checkForLatencyChanges(true, true);
++        reportLatencyChangeIfNeeded();
++       #endif
+     }
+
+     void deactivate()
