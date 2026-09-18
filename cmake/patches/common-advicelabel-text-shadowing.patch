@@ -1,0 +1,59 @@
+Fix AdviceLabel::onNanoDisplay(): the `text` data member shadows NanoVG's
+text() method, making the draw call uncallable
+
+Generated against AudioPluginsCommon (spellbound-common) tag v0.8.0, the
+version pinned by this repo's CMakeLists.txt AudioPluginsCommon GIT_TAG.
+File: src/hui/dgl/AdviceLabel.cpp.
+
+WHAT IS BROKEN
+--------------
+AdviceLabel.h declares a private `std::string text;` data member. Inside
+AdviceLabel::onNanoDisplay(), the unqualified call
+
+    text(textX, textY, text.c_str(), nullptr);
+
+resolves the callee `text` to that data member (ordinary unqualified name
+lookup finds the innermost declaration first), not to the inherited
+DGL::NanoVG::text(float, float, const char*, const char*) method -- so this
+tries to call operator() on a std::string, which doesn't exist:
+
+    error: no match for call to '(std::string) (const float&, const float&,
+    const char*, std::nullptr_t)'
+
+Same root cause as the CorrelationGauge patch in this same directory: this
+widget is new in v0.8.0 and had never actually been compiled by any
+downstream consumer before this task (TrueSight Task 7) tried to (see
+Common's own CLAUDE.md: `common/hui/dgl` only builds inside a project that
+already called dpf_add_plugin(), which Common's own standalone build never
+does).
+
+THE FIX
+-------
+Explicitly qualify the call as NanoVG::text(...) to bypass the data member
+and reach the base class method directly. AdviceLabel inherits from NanoVG
+via NanoSubWidget -> NanoBaseWidget<SubWidget> -> NanoVG, so the qualified
+name is directly reachable, no forwarding needed.
+
+VERIFICATION
+------------
+Rebuilt `audioplugins_common_hui_dgl` (part of TrueSight's normal
+`cmake --build build --parallel`) after applying this patch: compiles clean,
+no warnings. Confirmed by direct edit-then-build in
+build/_deps/audiopluginscommon-src before generating this patch from `git
+diff` there.
+
+Not yet reported upstream to spellbound-common.
+
+diff --git a/src/hui/dgl/AdviceLabel.cpp b/src/hui/dgl/AdviceLabel.cpp
+index e05151c..401f6b5 100644
+--- a/src/hui/dgl/AdviceLabel.cpp
++++ b/src/hui/dgl/AdviceLabel.cpp
+@@ -108,7 +108,7 @@ void AdviceLabel::onNanoDisplay()
+         const float textX = kPadding;
+         const float textY = h / 2.f;
+
+-        text(textX, textY, text.c_str(), nullptr);
++        NanoVG::text(textX, textY, text.c_str(), nullptr);
+         closePath();
+     }
+ }

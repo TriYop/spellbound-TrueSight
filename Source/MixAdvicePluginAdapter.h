@@ -21,8 +21,6 @@ protected:
     uint32_t getVersion() const override { return d_version(0, 2, 0); }
 
     void initParameter(uint32_t index, Parameter& parameter) override;
-    float getParameterValue(uint32_t index) const override;
-    void setParameterValue(uint32_t index, float value) override;
 
     void activate() override;
     void deactivate() override;
@@ -32,6 +30,19 @@ public:
     const AnalysisResult& getAnalysisResult() const noexcept { return analyser_.result; }
     const PresetManager& getPresetManager() const noexcept { return presetManager_; }
     bool isCurrentlyPlaying() const noexcept { return isPlaying_.load(std::memory_order_relaxed); }
+
+    // Overrides Plugin's protected getParameterValue()/setParameterValue(),
+    // re-declared public here (legal -- access control is per declaring
+    // class, and a derived class may broaden it): MixAdviceUI needs to read/
+    // write the preset-index parameter directly through the
+    // DISTRHO_PLUGIN_WANT_DIRECT_ACCESS pointer (see Common's PresetSelector
+    // onIndexSelected handler in MixAdviceUI.cpp), the same direct-access
+    // idiom HexPluginAdapter's public getInputLevel()/getOutputLevel() use
+    // for meters. Task 6's brief only documented the three accessors above as
+    // its public surface; broadening these two is this task's fix for that
+    // gap once MixAdviceUI.cpp's actual call sites needed it.
+    float getParameterValue(uint32_t index) const override;
+    void setParameterValue(uint32_t index, float value) override;
 
 private:
     PresetManager presetManager_;

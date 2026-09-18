@@ -100,20 +100,15 @@ if(APPLE)
     list(APPEND MIXADVICE_DPF_TARGETS au)
 endif()
 
-# No UI_TYPE / FILES_UI yet -- Task 7/8 add Source/MixAdviceUI.cpp and
-# Source/UI/MasteringAdvicePanel.cpp. DPF's dpf_add_plugin() macro documents
-# FILES_UI as optional ("empty indicates the plugin does not have UI") and its
-# implementation confirms this cleanly: dpf__ensure_sources_non_empty()
-# substitutes a dummy empty source for an empty FILES_UI list, and since no
-# UI_TYPE / no FILES_UI means _dgl_library stays unset, dpf_add_plugin() falls
-# back to `add_library("${NAME}-ui" INTERFACE)` instead of linking any DGL
-# backend (verified by reading the fetched macro directly:
-# build/_deps/dpf-src/cmake/DPF-plugin.cmake, dpf_add_plugin() around
-# lines 119-238). So this is a real, intentionally UI-less DSP-only plugin for
-# now, not a workaround -- Task 7 adds UI_TYPE/FILES_UI back once the GUI
-# sources exist.
+# Task 5 deliberately omitted UI_TYPE/FILES_UI here (no GUI sources existed
+# yet -- see git history for that task's full comment explaining DPF's
+# graceful UI-less fallback). Task 7 (this one) adds Source/MixAdviceUI.cpp as
+# the plugin's first UI translation unit; Task 8 adds
+# Source/UI/MasteringAdvicePanel.cpp to the same FILES_UI list once it exists
+# -- not added yet, same "don't build ahead" discipline Task 5 followed.
 dpf_add_plugin(MixAdvice
     TARGETS ${MIXADVICE_DPF_TARGETS}
+    UI_TYPE opengl
     FILES_DSP
         Source/MixAdvicePluginAdapter.cpp
         Source/Analysis/AnalyserEngine.cpp
@@ -122,9 +117,25 @@ dpf_add_plugin(MixAdvice
         Source/Analysis/AdviceAdapter.cpp
         Source/Presets/PresetManager.cpp
         ${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp
+    FILES_UI
+        Source/MixAdviceUI.cpp
 )
 
 target_include_directories(MixAdvice PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Source" "${CMAKE_BINARY_DIR}/generated")
+
+# DPF's dpf_add_plugin() unconditionally compiles dgl/src/pugl.cpp's inlined
+# WebViewImpl.cpp (a DPF bug: USE_FILE_BROWSER/USE_WEB_VIEW are forwarded to
+# dpf__add_dgl_opengl() as raw, always-truthy "$<BOOL:...>" generator-expression
+# strings -- see Hex/CMakeLists.txt's identical block for the full citation),
+# which uses the GNU `typeof` extension and fails to compile under strict ISO
+# C++ (our CMAKE_CXX_EXTENSIONS OFF default). Carried over verbatim from Hex,
+# which hit and fixed this first. Must come after dpf_add_plugin(MixAdvice
+# ...) -- that call is what lazily creates the dgl-opengl target in the first
+# place (see the ORDERING note on the FetchContent_MakeAvailable(AudioPluginsCommon)
+# call below for the same dependency).
+if(TARGET dgl-opengl)
+    set_target_properties(dgl-opengl PROPERTIES CXX_EXTENSIONS ON)
+endif()
 
 # ResonanceWorker.cpp/AnalyserEngine.cpp/PresetManager.cpp (see FILES_DSP above)
 # aren't built with -fPIC by AudioPluginsCommon's own CMakeLists.txt by
@@ -142,12 +153,37 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # over plain https using the developer's own cached git/gh credentials (no
 # token needed here), while CI authenticates via a short-lived `git config
 # url.insteadOf` rewrite (see Hex's .github/workflows/ci.yml for the pattern).
+# PATCH_COMMAND: two real compile-error fixes in Common's own v0.8.0 release
+# (its brand-new SpectrumMeter/CorrelationGauge/AdviceLabel widgets, added in
+# that same tag), not anything wrong with this repo's code. Root cause (see
+# each patch file for the full writeup): common/hui/dgl "only builds when the
+# consuming project's CMakeLists.txt calls dpf_add_plugin() ... before
+# FetchContent'ing this repo" (Common's own CLAUDE.md) -- Common's own
+# standalone build never fetches DPF, so neither CorrelationGauge.cpp nor
+# AdviceLabel.cpp had ever actually been compiled by anything before this
+# task (TrueSight Task 7) became their first real downstream consumer.
+# Same idempotent-patch caveat as the DPF patches above: only runs on a fresh
+# population of build/_deps/audiopluginscommon-src.
 FetchContent_Declare(AudioPluginsCommon
     GIT_REPOSITORY https://github.com/TriYop/spellbound-common.git
     GIT_TAG        v0.8.0
     GIT_SHALLOW    TRUE
+    PATCH_COMMAND  ${CMAKE_COMMAND}
+                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/common-correlationgauge-winding-type.patch
+                   -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
+            COMMAND ${CMAKE_COMMAND}
+                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/common-advicelabel-text-shadowing.patch
+                   -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
 )
 FetchContent_MakeAvailable(AudioPluginsCommon)
+
+# Linked into `MixAdvice-ui` rather than `MixAdvice`: dpf_add_plugin() splits
+# the plugin into a common `MixAdvice` static lib plus `MixAdvice-dsp` /
+# `MixAdvice-ui` static libs, and MixAdviceUI.cpp (the only consumer of these
+# widgets) lives in `MixAdvice-ui`. Linking PRIVATE here (not PUBLIC) keeps the
+# GL/UI library out of the DSP-only LV2 binary, same rationale as Hex-ui's
+# identical line.
+target_link_libraries(MixAdvice-ui PRIVATE AudioPluginsCommon::hui_dgl AudioPluginsCommon::presets)
 
 # TrueSight keeps its own Tests/CMakeLists.txt subdirectory convention from
 # Stage 4A (unlike Hex, whose tests are flat add_executable()s in its
