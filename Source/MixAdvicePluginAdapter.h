@@ -1,5 +1,8 @@
 #pragma once
 #include "DistrhoPlugin.hpp"
+#include "Analysis/AnalyserEngine.h"
+#include "Presets/PresetManager.h"
+#include <atomic>
 
 START_NAMESPACE_DISTRHO
 
@@ -21,14 +24,21 @@ protected:
     float getParameterValue(uint32_t index) const override;
     void setParameterValue(uint32_t index, float value) override;
 
+    void activate() override;
+    void deactivate() override;
     void run(const float** inputs, float** outputs, uint32_t frames) override;
 
 public:
-    int getNumPresets() const noexcept;
-    const char* getPresetName(int index) const noexcept;
+    const AnalysisResult& getAnalysisResult() const noexcept { return analyser_.result; }
+    const PresetManager& getPresetManager() const noexcept { return presetManager_; }
+    bool isCurrentlyPlaying() const noexcept { return isPlaying_.load(std::memory_order_relaxed); }
 
 private:
-    float presetIndex = 0.f;
+    PresetManager presetManager_;
+    int presetIndex_ = 0;
+    bool wasPlaying_ = false;
+    std::atomic<bool> isPlaying_ { false };
+    AnalyserEngine analyser_;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixAdvicePluginAdapter)
 };
