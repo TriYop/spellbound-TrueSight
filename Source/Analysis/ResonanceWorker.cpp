@@ -21,7 +21,13 @@ void ResonanceWorker::Worker::resetState() noexcept
     historyBuffer_.fill (0.f);
     windowsSinceReset_ = 0;
     hopsSincePeakPick_ = 0;
+
+    // Preserve/advance the generation counter across the reset so callers
+    // can tell "a reset was processed" apart from "nothing happened yet" --
+    // see ResonanceResult::generation's comment.
+    const uint64_t nextGeneration = cachedResult_.generation + 1;
     cachedResult_ = ResonanceResult {};
+    cachedResult_.generation = nextGeneration;
 }
 
 ResonanceWorker::ResonanceResult ResonanceWorker::Worker::processJob (const ResonanceJob& job) noexcept
@@ -87,6 +93,11 @@ void ResonanceWorker::prepare (double sampleRate)
     suspend();
     worker_ = std::make_unique<Worker> (sampleRate);
     stagingFill_ = 0;
+    // A freshly-constructed Worker already starts in a reset state (its own
+    // generation counter restarts independently), so any reset the old
+    // Worker was still being awaited for is moot -- avoid comparing a stale
+    // resetBaselineGeneration_ against the new Worker's unrelated counter.
+    awaitingReset_ = false;
     worker_->start();
 }
 
@@ -97,8 +108,41 @@ void ResonanceWorker::suspend()
 
 void ResonanceWorker::requestReset() noexcept
 {
-    if (worker_) worker_->resetRequested.store (true, std::memory_order_release);
+    if (worker_)
+    {
+        // Capture the background worker's generation *before* asking for a
+        // reset, so publishLatest() can later detect "a newer generation
+        // than this has now been produced" -- i.e. the reset was actually
+        // processed -- instead of guessing based on elapsed time.
+        resetBaselineGeneration_ = worker_->getLatest().generation;
+        awaitingReset_ = true;
+        worker_->resetRequested.store (true, std::memory_order_release);
+    }
     result_.resonanceCount.store (0, std::memory_order_relaxed);
+}
+
+void ResonanceWorker::publishLatest (const ResonanceResult& latest) noexcept
+{
+    if (awaitingReset_)
+    {
+        if (latest.generation == resetBaselineGeneration_)
+        {
+            // Background hasn't processed the reset yet: leave AnalysisResult
+            // as requestReset() already zeroed it, rather than republishing
+            // the stale pre-reset peak set this (still old-generation) result
+            // carries.
+            return;
+        }
+        awaitingReset_ = false;   // confirmed: a new generation was produced
+    }
+
+    for (int i = 0; i < latest.count; ++i)
+    {
+        result_.resonanceFreqHz[static_cast<size_t> (i)].store (latest.freqHz[static_cast<size_t> (i)], std::memory_order_relaxed);
+        result_.resonanceQ[static_cast<size_t> (i)].store (latest.q[static_cast<size_t> (i)], std::memory_order_relaxed);
+        result_.resonanceGainDb[static_cast<size_t> (i)].store (latest.gainDb[static_cast<size_t> (i)], std::memory_order_relaxed);
+    }
+    result_.resonanceCount.store (latest.count, std::memory_order_relaxed);
 }
 
 void ResonanceWorker::pushSamples (const float* mono, int numSamples) noexcept
@@ -119,20 +163,13 @@ void ResonanceWorker::pushSamples (const float* mono, int numSamples) noexcept
             job.samples = stagingBuffer_;
             worker_->submit (job);   // never blocks; drops the hop if the queue is full
             stagingFill_ = 0;
+
+            // Only publish once a hop has actually completed (~once per
+            // 43ms at 48kHz), not once per pushSamples() call (which can be
+            // once per host audio block, every 1-10ms) -- see pushSamples()'s
+            // doc comment for why this getLatest() call isn't fully RT-safe
+            // and should be taken as infrequently as correctness allows.
+            publishLatest (worker_->getLatest());
         }
     }
-
-    // Publish the latest known-good peak-pick result every call (cheap: a
-    // getLatest() copy of a small POD). The worker always returns its last
-    // computed peak set (see Worker::processJob), so this is safe to
-    // unconditionally overwrite AnalysisResult with -- between peak-pick
-    // cycles it's simply republishing the same values.
-    const auto latest = worker_->getLatest();
-    for (int i = 0; i < latest.count; ++i)
-    {
-        result_.resonanceFreqHz[static_cast<size_t> (i)].store (latest.freqHz[static_cast<size_t> (i)], std::memory_order_relaxed);
-        result_.resonanceQ[static_cast<size_t> (i)].store (latest.q[static_cast<size_t> (i)], std::memory_order_relaxed);
-        result_.resonanceGainDb[static_cast<size_t> (i)].store (latest.gainDb[static_cast<size_t> (i)], std::memory_order_relaxed);
-    }
-    result_.resonanceCount.store (latest.count, std::memory_order_relaxed);
 }
