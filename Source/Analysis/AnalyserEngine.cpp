@@ -3,27 +3,23 @@
 #include <algorithm>
 #include <cstdint>
 
-void AnalyserEngine::prepare (const juce::dsp::ProcessSpec& spec)
+void AnalyserEngine::prepare (double sampleRate, int maxBlockSize, int numChannels)
 {
-    const auto sr       = spec.sampleRate;
-    const auto maxBlock = static_cast<int> (spec.maximumBlockSize);
-    const auto nch      = static_cast<int> (spec.numChannels);
-
-    splitter_.prepare (static_cast<float> (sr), nch);
-    splitterInput_.assign (static_cast<size_t> (nch), std::vector<float> (static_cast<size_t> (maxBlock)));
+    splitter_.prepare (static_cast<float> (sampleRate), numChannels);
+    splitterInput_.assign (static_cast<size_t> (numChannels), std::vector<float> (static_cast<size_t> (maxBlockSize)));
     splitterBands_.assign (static_cast<size_t> (BandConfig::numBands),
-        std::vector<std::vector<float>> (static_cast<size_t> (nch), std::vector<float> (static_cast<size_t> (maxBlock))));
+        std::vector<std::vector<float>> (static_cast<size_t> (numChannels), std::vector<float> (static_cast<size_t> (maxBlockSize))));
 
-    monoScratch_.setSize  (1, maxBlock);
+    monoScratch_.assign (static_cast<size_t> (maxBlockSize), 0.f);
 
-    const float blocksPerSec = static_cast<float> (sr) / static_cast<float> (maxBlock);
+    const float blocksPerSec = static_cast<float> (sampleRate) / static_cast<float> (maxBlockSize);
     rmsAlpha_   = std::exp (-1.f / (0.10f * blocksPerSec));   // 100 ms
     corrAlpha_  = std::exp (-1.f / (0.30f * blocksPerSec));   // 300 ms
     crestAlpha_ = std::exp (-1.f / (0.50f * blocksPerSec));   // 500 ms
 
-    sampleRate_ = sr;
-    loudness_.prepare (sr);
-    resonance_.prepare (sr);
+    sampleRate_ = sampleRate;
+    loudness_.prepare (sampleRate);
+    resonance_.prepare (sampleRate);
 
     reset();
 }
@@ -82,10 +78,17 @@ void AnalyserEngine::suspend()
     resonance_.suspend();
 }
 
-void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
+void AnalyserEngine::process (const float* const* channelData, int numChannels, int numSamples)
 {
-    const int nSamples  = buffer.getNumSamples();
-    const int nChannels = std::min (buffer.getNumChannels(), 2);
+    // Defensive clamp: prepare() sizes monoScratch_/splitterInput_/splitterBands_ to the
+    // block size known at the time (host-reported max, or whatever activate()/
+    // bufferSizeChanged() last saw). A caller handing us more frames than that would
+    // write past those pre-sized buffers -- most concretely on LV2, where
+    // lv2_set_options() can raise the effective block size without a deactivate/
+    // activate cycle. Clamp here too so this class is safe regardless of the caller,
+    // even though MixAdvicePluginAdapter now also re-prepares on bufferSizeChanged().
+    const int nSamples  = std::min (numSamples, static_cast<int> (monoScratch_.size()));
+    const int nChannels = std::min (numChannels, 2);
 
     if (nSamples == 0 || nChannels < 2)
         return;
@@ -150,8 +153,8 @@ void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
     {
         auto toDb = [] (float lin) { return lin > 1e-7f ? 20.f * std::log10 (lin) : -100.f; };
 
-        const float* L = buffer.getReadPointer (0);
-        const float* R = buffer.getReadPointer (1);
+        const float* L = channelData[0];
+        const float* R = channelData[1];
 
         const float rawL    = blockRmsLinear   (L, nSamples);
         const float rawR    = blockRmsLinear   (R, nSamples);
@@ -188,14 +191,14 @@ void AnalyserEngine::process (const juce::AudioBuffer<float>& buffer)
 
         // Mono downmix, handed off to the background resonance-detector thread via a
         // lock-free FIFO push (never blocks/allocates on this, the audio, thread).
-        float* mono = monoScratch_.getWritePointer (0);
+        float* mono = monoScratch_.data();
         for (int i = 0; i < nSamples; ++i)
             mono[i] = 0.5f * (L[i] + R[i]);
         resonance_.pushSamples (mono, nSamples);
     }
 
     for (int ch = 0; ch < nChannels; ++ch)
-        std::copy (buffer.getReadPointer (ch), buffer.getReadPointer (ch) + nSamples,
+        std::copy (channelData[ch], channelData[ch] + nSamples,
                    splitterInput_[static_cast<size_t> (ch)].begin());
 
     splitter_.process (splitterInput_, splitterBands_, nSamples);

@@ -1,0 +1,60 @@
+Fix CorrelationGauge::onNanoDisplay()'s arc() call: bool literal doesn't
+convert to DGL::NanoVG::Winding
+
+Generated against AudioPluginsCommon (spellbound-common) tag v0.8.0, the
+version pinned by this repo's CMakeLists.txt AudioPluginsCommon GIT_TAG.
+File: src/hui/dgl/CorrelationGauge.cpp.
+
+WHAT IS BROKEN
+--------------
+DGL::NanoVG::arc()'s sixth parameter is an enum, not a bool:
+
+    void arc(float cx, float cy, float r, float a0, float a1, Winding dir);
+
+CorrelationGauge.cpp's decorative background-semicircle arc call passes a
+bare `false` for that argument. This compiled against whatever NanoVG.hpp
+snapshot the widget was originally written/reviewed against, but fails to
+compile against the DPF commit this repo (and Hex) actually pins
+(4238e1c7f0351bbe488d79f0899c540543ac7583):
+
+    error: cannot convert 'bool' to 'DGL::NanoVG::Winding'
+
+This widget is new in v0.8.0 (added in commit a28052a, "feat(common/hui):
+add spectral analysis UI components") and, per Common's own CLAUDE.md,
+`common/hui/dgl` "only builds when the consuming project's CMakeLists.txt
+calls dpf_add_plugin() ... before FetchContent'ing this repo" -- Common's own
+standalone build never fetches DPF, so this translation unit had never
+actually been compiled by anything until this task (TrueSight Task 7, the
+first real downstream consumer of CorrelationGauge) tried to.
+
+THE FIX
+-------
+Winding is an unscoped enum nested in the NanoVG class that CorrelationGauge
+inherits from (via NanoSubWidget -> NanoBaseWidget<SubWidget> -> NanoVG), so
+CCW is reachable unqualified from onNanoDisplay(). CCW vs CW makes no visible
+difference for a stroked (not filled) semicircle -- this is a type fix, not a
+rendering-behavior change.
+
+VERIFICATION
+------------
+Rebuilt `audioplugins_common_hui_dgl` (part of TrueSight's normal
+`cmake --build build --parallel`) after applying this patch: compiles clean,
+no warnings. Confirmed by direct edit-then-build in
+build/_deps/audiopluginscommon-src before generating this patch from `git
+diff` there.
+
+Not yet reported upstream to spellbound-common.
+
+diff --git a/src/hui/dgl/CorrelationGauge.cpp b/src/hui/dgl/CorrelationGauge.cpp
+index 1431a95..bacedee 100644
+--- a/src/hui/dgl/CorrelationGauge.cpp
++++ b/src/hui/dgl/CorrelationGauge.cpp
+@@ -92,7 +92,7 @@ void CorrelationGauge::onNanoDisplay()
+     // 4. Scale arc (semicircle from 0 to 1) ---------------------------
+     // Draw a faint semicircle background for the arc
+     beginPath();
+-    arc(centerX, centerY, radius, 0.f, static_cast<float>(M_PI), false);
++    arc(centerX, centerY, radius, 0.f, static_cast<float>(M_PI), CCW);
+     strokeColor(toDglColor(palette.border, 0.3f));
+     strokeWidth(1.f);
+     stroke();

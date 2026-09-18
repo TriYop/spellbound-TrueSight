@@ -18,17 +18,17 @@ echo "Uninstalling MixAdvice..."
 # User locations
 remove "${HOME}/.vst3/MixAdvice.vst3"
 remove "${HOME}/.clap/MixAdvice.clap"
-remove "${HOME}/.local/bin/MixAdvice"
+remove "${HOME}/.lv2/MixAdvice.lv2"
 
 # System locations (silently skip if no permission)
 if [[ $EUID -eq 0 ]]; then
     remove "/usr/lib/vst3/MixAdvice.vst3"
     remove "/usr/lib/clap/MixAdvice.clap"
-    remove "/usr/local/bin/MixAdvice"
+    remove "/usr/lib/lv2/MixAdvice.lv2"
 else
     for path in "/usr/lib/vst3/MixAdvice.vst3" \
                 "/usr/lib/clap/MixAdvice.clap" \
-                "/usr/local/bin/MixAdvice"; do
+                "/usr/lib/lv2/MixAdvice.lv2"; do
         if [[ -e "$path" ]]; then
             echo "  Skipping $path (re-run with sudo to remove)"
         fi

@@ -45,8 +45,8 @@ std::vector<audioplugins::common::analysis::ResonancePeak> buildResonancePeaks (
     std::vector<ResonancePeak> out;
 
     // Same clamp the old (removed) generateMarkdown() used before iterating
-    // snap.resonance* -- resonanceCount is written by the background
-    // ResonanceDetector thread and isn't otherwise bounds-checked.
+    // snap.resonance* -- resonanceCount is published from the audio thread
+    // (ResonanceWorker::pushSamples()) and isn't otherwise bounds-checked.
     const int count = std::clamp (snap.resonanceCount, 0, AnalysisResult::maxResonances);
     out.reserve (static_cast<size_t> (count));
 

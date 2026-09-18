@@ -1,0 +1,107 @@
+Fix PluginCLAP::stateLoad() losing parameters on chunked clap_istream reads
+
+Generated against DPF commit 4238e1c7f0351bbe488d79f0899c540543ac7583
+("Merge branch 'develop'", the commit pinned by AUDIOPLUGINS_DPF_GIT_TAG in
+Hex/CMakeLists.txt). File: distrho/src/DistrhoPluginCLAP.cpp.
+
+WHAT IS BROKEN
+--------------
+DPF serializes the default (parameter-only) plugin state as a flat stream of
+NUL-separated fields wrapped in sentinel tokens:
+
+    "__dpf_parameters_begin__\0" "hex\0" "25\0" "__dpf_parameters_end__\0" "\xfe\0"
+
+stateLoad() scans that stream with a 512-byte buffer. Because a field can span
+several stream->read() calls, it bounds each strlen() by temporarily writing a
+synthetic NUL at buffer[read] (the first byte past the current chunk), then
+restoring the original byte. It then decides "this field is complete" with:
+
+    if (buffer[i] == '\0')
+
+That test cannot distinguish the two cases it has to distinguish:
+
+  a) strlen() stopped at a REAL embedded NUL inside the chunk -> field complete;
+  b) strlen() ran to the end of the chunk and stopped on the SYNTHETIC NUL
+     -> the field is only partially read, the rest arrives in the next chunk.
+
+In case (b) buffer[read] has just been restored to whatever byte was there
+before, which for a chunked read is uninitialized/stale stack memory, so the
+branch is taken or not depending on garbage. When it is wrongly taken, the
+parser declares a truncated fragment (e.g. "__dpf_p") to be a complete field:
+the "__dpf_parameters_begin__" sentinel comparison never matches, queryingType
+never advances from 'i' to 'p', and Plugin::setParameterValue() is therefore
+never called for ANY parameter for the remainder of that stateLoad(). The
+parameter silently keeps its pre-load value.
+
+CLAP's clap_istream_t::read() contract (distrho/src/clap/stream.h) explicitly
+allows a short read -- `size` is a ceiling, not a guarantee -- and
+clap-validator's `state-reproducibility-buffered` test deliberately feeds the
+plugin a small prime number of bytes per call, which is exactly how this is
+triggered. Any DPF plugin whose serialized state contains a sentinel token that
+a chunked host reader can split across a read() boundary is affected; this is
+not specific to any one plugin.
+
+THE FIX
+-------
+Replace the ambiguous `buffer[i] == '\0'` completion test with `i < read`.
+After `i += strlen(buffer + i)`, `i` can only be strictly less than `read` if
+strlen() stopped at a real embedded NUL before reaching the synthetic
+terminator position; `i == read` means the chunk ran out mid-field. Partial
+accumulation into key/value already happens correctly before this test, and
+key/value/fillingKey/queryingType live outside the outer read loop, so the
+fragment simply continues accumulating on the next chunk.
+
+This is behaviour-preserving for unchunked hosts: when read == sizeof(buffer)-1
+the pre-loop `buffer[sizeof(buffer)-1] = '\xff'` sentinel already made the old
+test evaluate false at i == read, i.e. the same answer `i < read` gives, and at
+a genuine terminator both tests are true.
+
+VERIFICATION
+------------
+A byte-faithful standalone C++ re-implementation of this scan loop, fed DPF's
+real stateSave() wire format and a mock chunked clap_istream_t, was run over
+chunk sizes 1..600 x 4 different stack-fill patterns, for both a small (57-byte,
+single-read) and a large (2495-byte, multi-full-511-byte-read) state:
+
+    unpatched: 28/2400 (small state) and 510/2400 (large state) scenarios lose
+               parameter values
+    patched:   0/2400 in both
+
+End to end, clap-validator 0.4.1 against Hex.clap goes from
+"30 passed, 1 failed, 2 warnings, 11 skipped" to
+"31 passed, 0 failed, 2 warnings, 11 skipped".
+
+NOTE: distrho/src/DistrhoPluginVST3.cpp has the same construct at the
+equivalent line (~1005). It is deliberately NOT patched here: pluginval does not
+currently exercise a chunked VST3 IBStream read, so the bug is unproven there
+and out of scope for this change.
+
+Full root-cause investigation: task-4-report.md / task-5-report.md under
+Common/.superpowers/sdd/lets-breakdown-next-unfinished-breezy-shell/
+(session-local; the summary above is self-contained on purpose).
+
+Not reported upstream yet -- that is a separate, deliberate decision.
+
+diff --git a/distrho/src/DistrhoPluginCLAP.cpp b/distrho/src/DistrhoPluginCLAP.cpp
+index 5939092..297a361 100644
+--- a/distrho/src/DistrhoPluginCLAP.cpp
++++ b/distrho/src/DistrhoPluginCLAP.cpp
+@@ -1611,8 +1611,16 @@ public:
+                 // restore read character
+                 buffer[read] = orig;
+ 
+-                // if buffer offset points to null, we found the end of a string, lets check
+-                if (buffer[i] == '\0')
++                // if the strlen above stopped strictly before the end of this chunk, we found a
++                // real embedded null terminator, i.e. the end of a string. If it stopped *at* the
++                // end of the chunk (i == read) it only hit the synthetic terminator planted at
++                // buffer[read] above, which means the host's read() simply ran out of bytes
++                // mid-field: the fragment has already been accumulated into key/value, and the
++                // rest of the field arrives on the next stream->read() call.
++                // (Testing buffer[i] == '\0' here cannot tell those two cases apart: buffer[read]
++                // has just been restored to whatever stale byte was there, so the outcome would
++                // depend on uninitialized stack contents.)
++                if (i < read)
+                 {
+                     // special keys
+                     if (key == "__dpf_state_begin__")

@@ -19,6 +19,13 @@ The plugin ships a curated library of reference presets built from real analyzed
 
 ## Build Commands
 
+MixAdvice was migrated off JUCE onto [DPF](https://github.com/DISTRHO/DPF) +
+the first-party `AudioPluginsCommon` library (workspace-wide JUCE→DPF
+migration, see `../../CLAUDE.md`). There is no JUCE anywhere in this repo any
+more — `Source/_juce_reference/` keeps the old JUCE `PluginProcessor`/
+`PluginEditor` sources around purely as a porting reference; they are not
+part of any CMake target.
+
 ### Linux prerequisites (one-time)
 
 ```bash
@@ -36,29 +43,71 @@ sudo apt install cmake ninja-build build-essential git \
 cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ```
 
-First run downloads JUCE 8.0.13 and clap-juce-extensions 0.26.0 into `build/_deps/` (~200 MB shallow clone, ~2 min).
+First run `FetchContent`s two git dependencies into `build/_deps/` (no JUCE,
+no clap-juce-extensions):
+
+- **DPF**, pinned to a commit SHA on `main` (DPF has no tagged releases) —
+  see `AUDIOPLUGINS_DPF_GIT_TAG` in `CMakeLists.txt` for the exact commit,
+  shared with the sibling Hex/Pugilist repos that migrated first. Two small
+  patches are applied at configure time (`cmake/patches/dpf-clap-*.patch`,
+  both real CLAP-validator-caught bugs, not yet reported upstream).
+- **`AudioPluginsCommon`** (`github.com/TriYop/spellbound-common`, private
+  repo), pinned to tag `v0.8.0` — provides the shared DSP (`SevenBandSplitter`
+  etc.), analysis (`AdviceSet`/`deriveAdvice`/`ResonancePeakPicker`), and HUI
+  (`hui::dgl::SpectrumMeter`/`CorrelationGauge`/`PresetSelector`/`AdviceLabel`)
+  libraries. Two patches fix real compile errors in Common's own v0.8.0
+  release (`cmake/patches/common-*.patch`); see each patch file for the
+  writeup. Local machines clone it over plain `https` with cached
+  git/gh credentials; CI needs `COMMON_REPO_TOKEN` (currently unprovisioned —
+  CI has never gone green on this repo for that reason, not a build problem).
+
+Both `FetchContent_Declare(...)` calls only re-run their `PATCH_COMMAND` on a
+*fresh* population of `build/_deps/` — delete `build/_deps/dpf-src` or
+`build/_deps/audiopluginscommon-src` (or the whole `build/` dir) if you need
+to be sure a patch change actually took effect.
 
 ### Build
 
 ```bash
-cmake --build build --parallel                        # all targets
-cmake --build build --target MixAdvice_Standalone     # standalone only
-cmake --build build --target MixAdvice_VST3           # VST3 only
-cmake --build build --target MixAdvice_CLAP           # CLAP only
+cmake --build build --parallel      # all targets: VST3 + CLAP + LV2 (dsp+ui)
 ```
 
-### Run standalone
+DPF's `dpf_add_plugin(MixAdvice ...)` in `CMakeLists.txt` generates one
+target per format plus the shared static libs (`MixAdvice`, `MixAdvice-dsp`,
+`MixAdvice-ui`) — there is no per-format target name to build in isolation
+the way the old JUCE build had `MixAdvice_VST3`/`MixAdvice_CLAP`, and
+**there is no standalone target**: DPF only produces plugin formats here
+(`MIXADVICE_DPF_TARGETS` in `CMakeLists.txt` is `vst3 clap lv2`, plus `au` on
+macOS).
 
-```bash
-./build/MixAdvice_artefacts/Debug/Standalone/MixAdvice
+Build output lands under `build/bin/`, not `build/MixAdvice_artefacts/...`:
+
 ```
+build/bin/
+  MixAdvice.vst3/Contents/x86_64-linux/MixAdvice.so
+  MixAdvice.clap
+  MixAdvice.lv2/MixAdvice_dsp.so
+  MixAdvice.lv2/MixAdvice_ui.so
+```
+
+### Run
+
+There is no standalone build to run directly — load the VST3, CLAP, or LV2
+plugin in a host (e.g. `jalv`/Ardour for LV2, a CLAP host for `.clap`) after
+installing it (below).
 
 ### Install plugins (Linux, dev build)
 
 ```bash
-cp -r build/MixAdvice_artefacts/Debug/VST3/MixAdvice.vst3 ~/.vst3/
-cp    build/MixAdvice_artefacts/Debug/CLAP/MixAdvice.clap ~/.clap/
+mkdir -p ~/.vst3 ~/.clap ~/.lv2
+cp -r build/bin/MixAdvice.vst3 ~/.vst3/
+cp    build/bin/MixAdvice.clap ~/.clap/
+cp -r build/bin/MixAdvice.lv2  ~/.lv2/
 ```
+
+(This is what `scripts/install.sh` automates for a release tarball — see
+below — it just points at `VST3/`/`CLAP/`/`LV2/` subdirectories instead of
+`build/bin/` directly.)
 
 ### Create shippable tarball
 
@@ -68,48 +117,105 @@ cmake --build build-release --parallel
 cd build-release && cpack
 ```
 
-Produces `build-release/MixAdvice-<version>-linux-x86_64.tar.gz` (and a `.sha256` checksum) containing:
+Produces `build-release/MixAdvice-<version>-linux-x86_64.tar.gz` (and a
+`.sha256` checksum, `<version>` from `project(MixAdvice VERSION ...)` in
+`CMakeLists.txt`) containing:
 
 ```
 MixAdvice-<version>-linux-x86_64/
 ├── install.sh      ← run to install (user) or --system (root)
 ├── uninstall.sh    ← removes from all known locations
-├── bin/MixAdvice   ← standalone app
+├── VST3/MixAdvice.vst3/
 ├── CLAP/MixAdvice.clap
-└── VST3/MixAdvice.vst3/
+├── LV2/MixAdvice.lv2/
+└── Presets/*.xml   ← reference copies; factory presets are compiled in
+                       (see Presets section above), not read from here
 ```
+
+There is no `bin/MixAdvice` standalone binary in the tarball — MixAdvice is
+plugin-only.
 
 ### End-user installation from tarball
 
 ```bash
 tar -xzf MixAdvice-<version>-linux-x86_64.tar.gz
 cd MixAdvice-<version>-linux-x86_64
-./install.sh            # installs to ~/.vst3, ~/.clap, ~/.local/bin
-./install.sh --system   # installs system-wide (requires sudo)
+./install.sh            # installs VST3/CLAP/LV2 to ~/.vst3, ~/.clap, ~/.lv2
+./install.sh --system   # installs system-wide to /usr/lib (requires sudo)
 ```
+
+`scripts/uninstall.sh` removes from all of the above locations (and their
+`/usr/lib` system equivalents when run as root).
 
 ## Architecture
 
-**Source layout:**
+**Source layout** (DPF `Plugin`/`UI` split, no JUCE):
 
 ```
 Source/
-  PluginProcessor.h/.cpp   — AudioProcessor; analysis pipeline entry point, preset state
-  PluginEditor.h/.cpp      — AudioProcessorEditor; all UI code
-  Analysis/                — (future) FFT engine, M/S decoder, per-band correlator
-  Presets/                 — (future) genre profile data structs and loader
-  UI/                      — (future) custom JUCE Components (meters, advice labels)
+  DistrhoPluginInfo.h            — DPF plugin metadata (CLAP ID, unique ID, feature flags)
+  MixAdvicePluginAdapter.h/.cpp  — DPF Plugin subclass: parameter/state glue,
+                                    activate()/deactivate()/run(), wraps
+                                    AnalyserEngine + PresetManager
+  MixAdviceUI.h/.cpp             — DPF UI subclass: builds/lays out the
+                                    AudioPluginsCommon::hui_dgl widgets
+                                    (SpectrumMeter, CorrelationGauge,
+                                    PresetSelector, AdviceLabel) and drives
+                                    them from uiIdle()
+  Analysis/                      — framework-free DSP, no DPF/JUCE dependency:
+                                    AnalyserEngine (per-band RMS/correlation/
+                                    crest via SevenBandSplitter),
+                                    ResonanceWorker (background-thread FFT
+                                    peak-pick), ResonancePeakMath,
+                                    AdviceAdapter (bridges AnalysisResult to
+                                    Common's AdviceSet/deriveAdvice),
+                                    LoudnessAnalyser (EBU R128 LRA), AnalysisResult
+                                    (lock-free atomics read by the UI thread)
+  Presets/PresetManager.h/.cpp   — framework-free preset store: built-in
+                                    presets embedded at configure time (see
+                                    below) plus user presets from
+                                    ~/.config/MixAdvice/Presets
+  UI/MasteringAdvicePanel.h/.cpp — custom NanoVG panel (DGL NanoSubWidget):
+                                    per-band EQ/mixbus/loudness numeric
+                                    readout + resonance-cut list
+  _juce_reference/                — old JUCE PluginProcessor/PluginEditor,
+                                    kept only as a porting reference; not
+                                    compiled into any target
 ```
 
-**Data flow (target architecture):**
+**Built-in presets:** `CMakeLists.txt` globs `Presets/*.xml` at *configure*
+time and generates `${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.h/.cpp`
+(name → raw XML text), replacing the old `juce_add_binary_data` step.
+Editing/adding a preset file requires a re-configure, not just a rebuild.
+
+**DSP/UI link boundary (`FILES_COMMON`/`FILES_DSP`/`FILES_UI` in
+`CMakeLists.txt`):** DPF's `<name>-ui` static lib links against `<name>`
+(`FILES_COMMON`) but *not* `<name>-dsp`, so anything the UI reaches
+non-virtually and non-inline must live in `FILES_COMMON` even if it's
+conceptually DSP — this bit both `AdviceAdapter.cpp` and, initially,
+`PresetManager.cpp`/`EmbeddedPresets.cpp` (both now correctly in
+`FILES_COMMON`).
+
+**Data flow:**
 
 ```
-processBlock()
-  └─ Analysis pipeline (real-time, lock-free)
-       ├─ FFT → per-band energy levels
-       ├─ M/S decode → per-band mono correlation
-       └─ Results posted to UI thread via lock-free queue
-           └─ PluginEditor timer callback → reads results → repaints meters + advice text
+run()
+  └─ MixAdvicePluginAdapter::run() (audio thread, real-time-safe)
+       └─ AnalyserEngine::process() — SevenBandSplitter → per-band RMS/peak/
+          correlation/crest → AnalysisResult atomics; mono downmix pushed to
+          ResonanceWorker's lock-free FIFO
+            └─ ResonanceWorker background thread — FFT + peak-pick, publishes
+               resonance peaks back into AnalysisResult
+                 └─ MixAdviceUI::uiIdle() (UI thread, ~30 Hz)
+                      ├─ AnalysisResult::read() snapshot
+                      ├─ SpectrumMeter / CorrelationGauge / PresetSelector — live meters
+                      └─ buildAnalysisSnapshot() → deriveAdvice() +
+                         buildResonancePeaks() → MasteringAdvicePanel::update()
 ```
 
-**Preset system:** Each genre preset defines per-band target levels, acceptable mono-correlation ranges, and energy thresholds. `getNumPrograms()` / `setCurrentProgram()` are the DAW-facing API; the six slots map to the genre presets listed above.
+**Preset system:** `PresetManager` holds the merged built-in + user preset
+list; `MixAdvicePluginAdapter`'s single automatable parameter
+(`kParameterPresetIndex`) is the DAW-facing selector, mirrored into
+`MixAdviceUI`'s `PresetSelector` widget via `parameterChanged()`/
+`onIndexSelected`. Each preset defines per-band target levels and other
+thresholds `deriveAdvice()` compares the live analysis against.

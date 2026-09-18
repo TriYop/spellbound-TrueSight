@@ -1,14 +1,12 @@
 #pragma once
 #include <array>
 #include <vector>
-#include <juce_dsp/juce_dsp.h>
-#include <juce_audio_basics/juce_audio_basics.h>
 #include "audioplugins/common/dsp/SevenBandSplitter.h"
 #include "BandConfig.h"
 #include "AnalysisResult.h"
 #include "QuantileHistogram.h"
 #include "LoudnessAnalyser.h"
-#include "ResonanceDetector.h"
+#include "ResonanceWorker.h"
 
 // Splits the stereo input into 7 frequency bands using
 // common::dsp::SevenBandSplitter (Linkwitz-Riley crossovers), then computes
@@ -18,8 +16,8 @@
 class AnalyserEngine
 {
 public:
-    void prepare (const juce::dsp::ProcessSpec& spec);
-    void process (const juce::AudioBuffer<float>& buffer);
+    void prepare (double sampleRate, int maxBlockSize, int numChannels);
+    void process (const float* const* channelData, int numChannels, int numSamples);
     void reset();
 
     AnalysisResult result;
@@ -77,14 +75,14 @@ private:
     double   sampleRate_        { 44100.0 };
     uint64_t samplesSinceReset_ { 0 };
 
-    // Pre-allocated mono downmix scratch buffer for the resonance detector's audio-thread push.
-    juce::AudioBuffer<float> monoScratch_;
+    // Pre-allocated mono downmix scratch buffer (was juce::AudioBuffer<float>).
+    std::vector<float> monoScratch_;
 
     // Background-thread spectral resonance detector. Declared after `result` (above) so
     // it is destroyed *before* `result` (C++ destroys members in reverse declaration
     // order) — it holds a reference to `result` and must stop before that reference
     // becomes dangling.
-    ResonanceDetector resonance_ { result };
+    ResonanceWorker resonance_ { result };
 
 public:
     void resetPeaks();
