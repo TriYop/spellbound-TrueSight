@@ -1,6 +1,6 @@
 #pragma once
 #include "DistrhoUI.hpp"
-#include "MixAdvicePluginAdapter.h"
+#include "TrueSightPluginAdapter.h"
 #include "Analysis/BandConfig.h"
 #include "Analysis/AdviceAdapter.h"
 #include "UI/MasteringAdvicePanel.h"
@@ -13,10 +13,10 @@
 
 START_NAMESPACE_DISTRHO
 
-class MixAdviceUI : public UI
+class TrueSightUI : public UI
 {
 public:
-    MixAdviceUI();
+    TrueSightUI();
 
 protected:
     void parameterChanged(uint32_t index, float value) override;
@@ -26,7 +26,7 @@ protected:
 private:
     void refreshPresetSelector();
 
-    MixAdvicePluginAdapter* const fPluginPtr;
+    TrueSightPluginAdapter* const fPluginPtr;
 
     std::unique_ptr<audioplugins::common::hui::dgl::SpectrumMeter> fSpectrumMeter;
     std::array<std::unique_ptr<audioplugins::common::hui::dgl::CorrelationGauge>, BandConfig::numBands> fCorrelationGauges;
@@ -34,7 +34,7 @@ private:
     std::unique_ptr<audioplugins::common::hui::dgl::AdviceLabel> fWarmupLabel;
     std::unique_ptr<MasteringAdvicePanel> fAdvicePanel;
 
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixAdviceUI)
+    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrueSightUI)
 };
 
 END_NAMESPACE_DISTRHO

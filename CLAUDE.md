@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MixAdvice is a realtime audio analyzer DAW plugin (pre-mastering indicator) that detects mix issues and emits actionable advice. It is not a mastering tool — it is a diagnostic tool used before mastering.
+TrueSight is a realtime audio analyzer DAW plugin (pre-mastering indicator) that detects mix issues and emits actionable advice. It is not a mastering tool — it is a diagnostic tool used before mastering.
 
 ## Domain: What the Plugin Analyzes
 
@@ -15,11 +15,11 @@ MixAdvice is a realtime audio analyzer DAW plugin (pre-mastering indicator) that
 
 ## Presets / Genre Targets
 
-The plugin ships a curated library of reference presets built from real analyzed tracks (`Presets/*.xml`, embedded at build time — see `CMakeLists.txt`'s `MIXADVICE_PRESET_FILES` glob). Each preset defines the expected per-band levels, mono compatibility tolerances, and energy ranges for that reference material. The library is generated with `tools/preset-builder` (see that tool's README) and is expected to grow over time rather than stay fixed to a small archetype list — check `Presets/` for the current set.
+The plugin ships a curated library of reference presets built from real analyzed tracks (`Presets/*.xml`, embedded at build time — see `CMakeLists.txt`'s `TRUESIGHT_PRESET_FILES` glob). Each preset defines the expected per-band levels, mono compatibility tolerances, and energy ranges for that reference material. The library is generated with `tools/preset-builder` (see that tool's README) and is expected to grow over time rather than stay fixed to a small archetype list — check `Presets/` for the current set.
 
 ## Build Commands
 
-MixAdvice was migrated off JUCE onto [DPF](https://github.com/DISTRHO/DPF) +
+TrueSight was migrated off JUCE onto [DPF](https://github.com/DISTRHO/DPF) +
 the first-party `AudioPluginsCommon` library (workspace-wide JUCE→DPF
 migration, see `../../CLAUDE.md`). There is no JUCE anywhere in this repo any
 more — `Source/_juce_reference/` keeps the old JUCE `PluginProcessor`/
@@ -72,22 +72,22 @@ to be sure a patch change actually took effect.
 cmake --build build --parallel      # all targets: VST3 + CLAP + LV2 (dsp+ui)
 ```
 
-DPF's `dpf_add_plugin(MixAdvice ...)` in `CMakeLists.txt` generates one
-target per format plus the shared static libs (`MixAdvice`, `MixAdvice-dsp`,
-`MixAdvice-ui`) — there is no per-format target name to build in isolation
-the way the old JUCE build had `MixAdvice_VST3`/`MixAdvice_CLAP`, and
+DPF's `dpf_add_plugin(TrueSight ...)` in `CMakeLists.txt` generates one
+target per format plus the shared static libs (`TrueSight`, `TrueSight-dsp`,
+`TrueSight-ui`) — there is no per-format target name to build in isolation
+the way the old JUCE build had `TrueSight_VST3`/`TrueSight_CLAP`, and
 **there is no standalone target**: DPF only produces plugin formats here
-(`MIXADVICE_DPF_TARGETS` in `CMakeLists.txt` is `vst3 clap lv2`, plus `au` on
+(`TRUESIGHT_DPF_TARGETS` in `CMakeLists.txt` is `vst3 clap lv2`, plus `au` on
 macOS).
 
-Build output lands under `build/bin/`, not `build/MixAdvice_artefacts/...`:
+Build output lands under `build/bin/`, not `build/TrueSight_artefacts/...`:
 
 ```
 build/bin/
-  MixAdvice.vst3/Contents/x86_64-linux/MixAdvice.so
-  MixAdvice.clap
-  MixAdvice.lv2/MixAdvice_dsp.so
-  MixAdvice.lv2/MixAdvice_ui.so
+  TrueSight.vst3/Contents/x86_64-linux/TrueSight.so
+  TrueSight.clap
+  TrueSight.lv2/TrueSight_dsp.so
+  TrueSight.lv2/TrueSight_ui.so
 ```
 
 ### Run
@@ -100,9 +100,9 @@ installing it (below).
 
 ```bash
 mkdir -p ~/.vst3 ~/.clap ~/.lv2
-cp -r build/bin/MixAdvice.vst3 ~/.vst3/
-cp    build/bin/MixAdvice.clap ~/.clap/
-cp -r build/bin/MixAdvice.lv2  ~/.lv2/
+cp -r build/bin/TrueSight.vst3 ~/.vst3/
+cp    build/bin/TrueSight.clap ~/.clap/
+cp -r build/bin/TrueSight.lv2  ~/.lv2/
 ```
 
 (This is what `scripts/install.sh` automates for a release tarball — see
@@ -117,29 +117,29 @@ cmake --build build-release --parallel
 cd build-release && cpack
 ```
 
-Produces `build-release/MixAdvice-<version>-linux-x86_64.tar.gz` (and a
-`.sha256` checksum, `<version>` from `project(MixAdvice VERSION ...)` in
+Produces `build-release/TrueSight-<version>-linux-x86_64.tar.gz` (and a
+`.sha256` checksum, `<version>` from `project(TrueSight VERSION ...)` in
 `CMakeLists.txt`) containing:
 
 ```
-MixAdvice-<version>-linux-x86_64/
+TrueSight-<version>-linux-x86_64/
 ├── install.sh      ← run to install (user) or --system (root)
 ├── uninstall.sh    ← removes from all known locations
-├── VST3/MixAdvice.vst3/
-├── CLAP/MixAdvice.clap
-├── LV2/MixAdvice.lv2/
+├── VST3/TrueSight.vst3/
+├── CLAP/TrueSight.clap
+├── LV2/TrueSight.lv2/
 └── Presets/*.xml   ← reference copies; factory presets are compiled in
                        (see Presets section above), not read from here
 ```
 
-There is no `bin/MixAdvice` standalone binary in the tarball — MixAdvice is
+There is no `bin/TrueSight` standalone binary in the tarball — TrueSight is
 plugin-only.
 
 ### End-user installation from tarball
 
 ```bash
-tar -xzf MixAdvice-<version>-linux-x86_64.tar.gz
-cd MixAdvice-<version>-linux-x86_64
+tar -xzf TrueSight-<version>-linux-x86_64.tar.gz
+cd TrueSight-<version>-linux-x86_64
 ./install.sh            # installs VST3/CLAP/LV2 to ~/.vst3, ~/.clap, ~/.lv2
 ./install.sh --system   # installs system-wide to /usr/lib (requires sudo)
 ```
@@ -154,10 +154,10 @@ cd MixAdvice-<version>-linux-x86_64
 ```
 Source/
   DistrhoPluginInfo.h            — DPF plugin metadata (CLAP ID, unique ID, feature flags)
-  MixAdvicePluginAdapter.h/.cpp  — DPF Plugin subclass: parameter/state glue,
+  TrueSightPluginAdapter.h/.cpp  — DPF Plugin subclass: parameter/state glue,
                                     activate()/deactivate()/run(), wraps
                                     AnalyserEngine + PresetManager
-  MixAdviceUI.h/.cpp             — DPF UI subclass: builds/lays out the
+  TrueSightUI.h/.cpp             — DPF UI subclass: builds/lays out the
                                     AudioPluginsCommon::hui_dgl widgets
                                     (SpectrumMeter, CorrelationGauge,
                                     PresetSelector, AdviceLabel) and drives
@@ -174,7 +174,12 @@ Source/
   Presets/PresetManager.h/.cpp   — framework-free preset store: built-in
                                     presets embedded at configure time (see
                                     below) plus user presets from
-                                    ~/.config/MixAdvice/Presets
+                                    ~/.config/MixAdvice/Presets (path
+                                    intentionally left unchanged by the
+                                    TrueSight rebrand — it's a locked
+                                    cross-repo contract with Codex/
+                                    MasterTweak's own preset schema, see
+                                    ../CLAUDE.md's Cross-Plugin Naming Note)
   UI/MasteringAdvicePanel.h/.cpp — custom NanoVG panel (DGL NanoSubWidget):
                                     per-band EQ/mixbus/loudness numeric
                                     readout + resonance-cut list
@@ -200,13 +205,13 @@ conceptually DSP — this bit both `AdviceAdapter.cpp` and, initially,
 
 ```
 run()
-  └─ MixAdvicePluginAdapter::run() (audio thread, real-time-safe)
+  └─ TrueSightPluginAdapter::run() (audio thread, real-time-safe)
        └─ AnalyserEngine::process() — SevenBandSplitter → per-band RMS/peak/
           correlation/crest → AnalysisResult atomics; mono downmix pushed to
           ResonanceWorker's lock-free FIFO
             └─ ResonanceWorker background thread — FFT + peak-pick, publishes
                resonance peaks back into AnalysisResult
-                 └─ MixAdviceUI::uiIdle() (UI thread, ~30 Hz)
+                 └─ TrueSightUI::uiIdle() (UI thread, ~30 Hz)
                       ├─ AnalysisResult::read() snapshot
                       ├─ SpectrumMeter / CorrelationGauge / PresetSelector — live meters
                       └─ buildAnalysisSnapshot() → deriveAdvice() +
@@ -214,8 +219,8 @@ run()
 ```
 
 **Preset system:** `PresetManager` holds the merged built-in + user preset
-list; `MixAdvicePluginAdapter`'s single automatable parameter
+list; `TrueSightPluginAdapter`'s single automatable parameter
 (`kParameterPresetIndex`) is the DAW-facing selector, mirrored into
-`MixAdviceUI`'s `PresetSelector` widget via `parameterChanged()`/
+`TrueSightUI`'s `PresetSelector` widget via `parameterChanged()`/
 `onIndexSelected`. Each preset defines per-band target levels and other
 thresholds `deriveAdvice()` compares the live analysis against.

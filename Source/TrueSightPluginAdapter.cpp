@@ -1,16 +1,16 @@
-#include "MixAdvicePluginAdapter.h"
+#include "TrueSightPluginAdapter.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 
 START_NAMESPACE_DISTRHO
 
-MixAdvicePluginAdapter::MixAdvicePluginAdapter()
+TrueSightPluginAdapter::TrueSightPluginAdapter()
     : Plugin(kParameterCount, 0, 0)
 {
 }
 
-void MixAdvicePluginAdapter::initParameter(const uint32_t index, Parameter& parameter)
+void TrueSightPluginAdapter::initParameter(const uint32_t index, Parameter& parameter)
 {
     if (index != kParameterPresetIndex) return;
     parameter.hints  = kParameterIsAutomatable | kParameterIsInteger;
@@ -28,43 +28,43 @@ void MixAdvicePluginAdapter::initParameter(const uint32_t index, Parameter& para
     parameter.ranges.max = static_cast<float>(std::max(1, presetManager_.getNumPresets() - 1));
 }
 
-float MixAdvicePluginAdapter::getParameterValue(const uint32_t index) const
+float TrueSightPluginAdapter::getParameterValue(const uint32_t index) const
 {
     return index == kParameterPresetIndex ? static_cast<float>(presetIndex_) : 0.f;
 }
 
-void MixAdvicePluginAdapter::setParameterValue(const uint32_t index, const float value)
+void TrueSightPluginAdapter::setParameterValue(const uint32_t index, const float value)
 {
     if (index != kParameterPresetIndex) return;
     const int maxIndex = std::max(0, presetManager_.getNumPresets() - 1);
     presetIndex_ = std::clamp(static_cast<int>(value + 0.5f), 0, maxIndex);
 }
 
-void MixAdvicePluginAdapter::activate()
+void TrueSightPluginAdapter::activate()
 {
     analyser_.prepare(getSampleRate(), static_cast<int>(getBufferSize()), 2);
     analyser_.resetPeaks();
     wasPlaying_ = false;
 }
 
-void MixAdvicePluginAdapter::deactivate()
+void TrueSightPluginAdapter::deactivate()
 {
     analyser_.suspend();
 }
 
-void MixAdvicePluginAdapter::bufferSizeChanged(const uint32_t newBufferSize)
+void TrueSightPluginAdapter::bufferSizeChanged(const uint32_t newBufferSize)
 {
     analyser_.prepare(getSampleRate(), static_cast<int>(newBufferSize), 2);
     analyser_.resetPeaks();
 }
 
-void MixAdvicePluginAdapter::sampleRateChanged(const double newSampleRate)
+void TrueSightPluginAdapter::sampleRateChanged(const double newSampleRate)
 {
     analyser_.prepare(newSampleRate, static_cast<int>(getBufferSize()), 2);
     analyser_.resetPeaks();
 }
 
-void MixAdvicePluginAdapter::run(const float** inputs, float** outputs, uint32_t frames)
+void TrueSightPluginAdapter::run(const float** inputs, float** outputs, uint32_t frames)
 {
     if (outputs[0] != inputs[0]) std::memcpy(outputs[0], inputs[0], sizeof(float) * frames);
     if (outputs[1] != inputs[1]) std::memcpy(outputs[1], inputs[1], sizeof(float) * frames);
@@ -91,6 +91,6 @@ void MixAdvicePluginAdapter::run(const float** inputs, float** outputs, uint32_t
         analyser_.process(outputs, 2, static_cast<int>(frames));
 }
 
-Plugin* createPlugin() { return new MixAdvicePluginAdapter(); }
+Plugin* createPlugin() { return new TrueSightPluginAdapter(); }
 
 END_NAMESPACE_DISTRHO
