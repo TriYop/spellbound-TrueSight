@@ -2,7 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "master" ]
+    # TEMP-CI-VALIDATION: worktree-sdd-truesight-dpf-migration is added here
+    # only so Task 9 can watch a real push-triggered run on this topic branch
+    # without opening the whole-branch PR (deferred until all 11 plan tasks
+    # land). Reverted to just main/master (matching Hex's own workflow) once
+    # the run is verified -- see the commit that removes this line.
+    branches: [ "main", "master", "worktree-sdd-truesight-dpf-migration" ]
     tags: [ "v*" ]
   pull_request:
     branches: [ "main", "master" ]
