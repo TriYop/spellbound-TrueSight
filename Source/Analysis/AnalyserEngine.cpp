@@ -80,7 +80,14 @@ void AnalyserEngine::suspend()
 
 void AnalyserEngine::process (const float* const* channelData, int numChannels, int numSamples)
 {
-    const int nSamples  = numSamples;
+    // Defensive clamp: prepare() sizes monoScratch_/splitterInput_/splitterBands_ to the
+    // block size known at the time (host-reported max, or whatever activate()/
+    // bufferSizeChanged() last saw). A caller handing us more frames than that would
+    // write past those pre-sized buffers -- most concretely on LV2, where
+    // lv2_set_options() can raise the effective block size without a deactivate/
+    // activate cycle. Clamp here too so this class is safe regardless of the caller,
+    // even though MixAdvicePluginAdapter now also re-prepares on bufferSizeChanged().
+    const int nSamples  = std::min (numSamples, static_cast<int> (monoScratch_.size()));
     const int nChannels = std::min (numChannels, 2);
 
     if (nSamples == 0 || nChannels < 2)

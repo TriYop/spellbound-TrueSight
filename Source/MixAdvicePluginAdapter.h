@@ -26,6 +26,18 @@ protected:
     void deactivate() override;
     void run(const float** inputs, float** outputs, uint32_t frames) override;
 
+    // DPF's docs say these only fire while deactivated, but on LV2 specifically
+    // lv2_set_options() calls setBufferSize(n, /*doCallback=*/true) at runtime
+    // without a deactivate/activate cycle (DistrhoPluginLV2.cpp), and DPF's LV2
+    // host-side prefers the host's nominalBlockLength over maxBlockLength when
+    // both are offered. Without these overrides, analyser_'s scratch buffers
+    // stay sized to whatever activate() saw, and a later run() with more frames
+    // writes past them (heap-buffer-overflow, reproduced under ASAN). Re-prepare
+    // on both callbacks so the DSP is always sized for the current buffer/rate,
+    // regardless of which format or calling convention triggered the change.
+    void bufferSizeChanged(uint32_t newBufferSize) override;
+    void sampleRateChanged(double newSampleRate) override;
+
 public:
     const AnalysisResult& getAnalysisResult() const noexcept { return analyser_.result; }
     const PresetManager& getPresetManager() const noexcept { return presetManager_; }

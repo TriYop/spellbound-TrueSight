@@ -52,6 +52,18 @@ void MixAdvicePluginAdapter::deactivate()
     analyser_.suspend();
 }
 
+void MixAdvicePluginAdapter::bufferSizeChanged(const uint32_t newBufferSize)
+{
+    analyser_.prepare(getSampleRate(), static_cast<int>(newBufferSize), 2);
+    analyser_.resetPeaks();
+}
+
+void MixAdvicePluginAdapter::sampleRateChanged(const double newSampleRate)
+{
+    analyser_.prepare(newSampleRate, static_cast<int>(getBufferSize()), 2);
+    analyser_.resetPeaks();
+}
+
 void MixAdvicePluginAdapter::run(const float** inputs, float** outputs, uint32_t frames)
 {
     if (outputs[0] != inputs[0]) std::memcpy(outputs[0], inputs[0], sizeof(float) * frames);
