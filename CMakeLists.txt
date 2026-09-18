@@ -106,24 +106,34 @@ endif()
 # plugin's first UI translation unit; Task 8 (this one) adds
 # Source/UI/MasteringAdvicePanel.cpp to the same FILES_UI list.
 #
-# Source/Analysis/AdviceAdapter.cpp lives in FILES_COMMON, not FILES_DSP:
+# Source/Analysis/AdviceAdapter.cpp and Source/Presets/PresetManager.cpp (plus
+# its generated EmbeddedPresets.cpp) live in FILES_COMMON, not FILES_DSP:
 # DPF's <name>-ui static lib links PUBLIC against <name> (the FILES_COMMON
 # lib) but NOT against <name>-dsp, so a symbol only compiled into FILES_DSP
 # is invisible to the UI's link step. MixAdviceUI.cpp (Task 8) is the first
 # UI-side caller of buildAnalysisSnapshot()/buildResonancePeaks(), which
-# surfaced this -- see DPF's cmake/DPF-plugin.cmake, function dpf_add_plugin.
+# surfaced this for AdviceAdapter.cpp -- see DPF's cmake/DPF-plugin.cmake,
+# function dpf_add_plugin. The final whole-branch review (I4) found the same
+# bug class in PresetManager.cpp: MixAdviceUI::uiIdle() reads the preset list
+# every tick via getNumPresets()/getPreset(), which only happened to link
+# because those two are defined inline in PresetManager.h -- findByName(),
+# refresh() and getUserPresetsDir() are out-of-line and would have reproduced
+# Task 8's exact link failure on the first UI-side call. General rule going
+# forward: anything the UI can reach non-virtually and non-inline must be in
+# FILES_COMMON, not FILES_DSP, regardless of which "side" it conceptually
+# belongs to.
 dpf_add_plugin(MixAdvice
     TARGETS ${MIXADVICE_DPF_TARGETS}
     UI_TYPE opengl
     FILES_COMMON
         Source/Analysis/AdviceAdapter.cpp
+        Source/Presets/PresetManager.cpp
+        ${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp
     FILES_DSP
         Source/MixAdvicePluginAdapter.cpp
         Source/Analysis/AnalyserEngine.cpp
         Source/Analysis/ResonanceWorker.cpp
         Source/Analysis/ResonancePeakMath.cpp
-        Source/Presets/PresetManager.cpp
-        ${CMAKE_BINARY_DIR}/generated/EmbeddedPresets.cpp
     FILES_UI
         Source/MixAdviceUI.cpp
         Source/UI/MasteringAdvicePanel.cpp
@@ -145,8 +155,9 @@ if(TARGET dgl-opengl)
     set_target_properties(dgl-opengl PROPERTIES CXX_EXTENSIONS ON)
 endif()
 
-# ResonanceWorker.cpp/AnalyserEngine.cpp/PresetManager.cpp (see FILES_DSP above)
-# aren't built with -fPIC by AudioPluginsCommon's own CMakeLists.txt by
+# ResonanceWorker.cpp/AnalyserEngine.cpp (FILES_DSP) and AdviceAdapter.cpp/
+# PresetManager.cpp (FILES_COMMON, see above) aren't built with -fPIC by
+# AudioPluginsCommon's own CMakeLists.txt by
 # default; linking their object files into the VST3/CLAP/LV2 shared modules
 # fails with "recompile with -fPIC" otherwise. Must be set before
 # FetchContent_MakeAvailable(AudioPluginsCommon) below so it applies to its
