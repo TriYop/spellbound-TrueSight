@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-test:
+    # Windows and macOS legs are unverified: nobody has run a DPF/DGL build
+    # on either platform yet in this repo, and the dgl-opengl CXX_EXTENSIONS
+    # ON workaround above (needed to work around DPF's WebView leak on
+    # Linux/GCC) is a documented no-op on MSVC — Windows' compiler has no
+    # GNU extensions to enable/disable, so that leg isn't actually protected
+    # by the fix that made Linux pass. Mark both continue-on-error so a
+    # currently-unwatched failure there doesn't block the workflow or read
+    # as false confidence from a green badge, while still gating on the
+    # Linux leg (which IS verified).
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Release]
+
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libjack-jackd2-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+            libxinerama-dev libxrandr-dev libxrender-dev \
+            libfreetype-dev libfontconfig1-dev \
+            libglu1-mesa-dev libwebkit2gtk-4.1-dev \
+            xvfb
+
+      - name: Configure Common repo access
+        # github.com/TriYop/spellbound-common (FetchContent'd below) is
+        # private -- actions/checkout's token doesn't extend to other repos,
+        # so rewrite just that one clone URL to embed a read-only,
+        # contents-only fine-grained PAT scoped to spellbound-common only.
+        run: git config --global url."https://x-access-token:${{ secrets.COMMON_REPO_TOKEN }}@github.com/TriYop/spellbound-common".insteadOf "https://github.com/TriYop/spellbound-common"
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel
+
+      - name: Test
+        working-directory: build
+        run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
+
+      # --- Plugin validators (Linux-only for now) ---
+      #
+      # Windows/macOS validator support is explicitly deferred: those legs
+      # don't yet have a verified build (see the continue-on-error note on
+      # this job above), so there's nothing meaningful to validate there
+      # yet. Add validator steps for those platforms once their builds are
+      # verified, not before.
+      #
+      # Both validators need a real GL context to load-and-close MixAdvice's
+      # UI (NanoVG/DGL -- SpectrumMeter + 7 CorrelationGauges +
+      # MasteringAdvicePanel), even headlessly, hence xvfb-run below. The
+      # UI's extra visual complexity relative to e.g. Hex doesn't change
+      # this: both validators only instantiate-and-close the UI to confirm
+      # it doesn't crash/hang, they don't drive it interactively, so the
+      # same xvfb-run pattern Hex already validated applies unchanged.
+
+      - name: Download pluginval
+        if: runner.os == 'Linux'
+        run: |
+          # v1.0.4 was the latest pluginval release as of this task
+          # (2026-08-26), per https://github.com/Tracktion/pluginval/releases
+          # and the GitHub API's /releases/latest. Its Linux asset
+          # (pluginval_Linux.zip) is a zip containing one bare executable
+          # named `pluginval` (no wrapper directory, not an AppImage) —
+          # confirmed by downloading and inspecting it locally, not assumed.
+          curl -sL -o pluginval_Linux.zip \
+            https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip
+          unzip -o pluginval_Linux.zip
+          chmod +x pluginval
+
+      - name: Validate VST3 with pluginval
+        if: runner.os == 'Linux'
+        run: |
+          # --strictness-level and --validate confirmed against pluginval's
+          # real `--help` output (run locally against this same build).
+          # Strictness 5 is pluginval's own documented default and
+          # recommended minimum for host-compatibility testing: enough to
+          # exercise real audio/automation/state-save/state-reload paths,
+          # short of the higher levels (which add fuzzing and are known to
+          # trip up plenty of otherwise-compliant plugins).
+          xvfb-run -a ./pluginval --strictness-level 5 --validate build/bin/MixAdvice.vst3
+
+      - name: Download clap-validator
+        if: runner.os == 'Linux'
+        run: |
+          # 0.4.1 was the latest clap-validator release as of this task
+          # (2026-08-26), per https://github.com/free-audio/clap-validator/releases
+          # and the GitHub API's /releases/latest. It ships a prebuilt Linux
+          # binary (built on ubuntu-22.04, forward-compatible with newer
+          # glibc on ubuntu-latest) — no Rust/cargo toolchain needed in CI.
+          # Note: the release's zip asset is named for tag 0.4.1, but the
+          # tar.gz inside it is misnamed with an internal dev version
+          # (0.3.2-127-g152b982) — `clap-validator --version` itself still
+          # reports 0.4.1, confirmed locally; this is just an upstream
+          # filename inconsistency, not a version we're actually running.
+          curl -sL -o clap-validator.zip \
+            https://github.com/free-audio/clap-validator/releases/download/0.4.1/clap-validator-0.4.1-127-g152b982-ubuntu-22.04.zip
+          unzip -o clap-validator.zip
+          tar -xzf clap-validator-*-ubuntu-22.04.tar.gz
+          chmod +x clap-validator
+
+      - name: Validate CLAP with clap-validator
+        if: runner.os == 'Linux'
+        run: |
+          # `validate <path>` confirmed against clap-validator's real
+          # `--help`/`validate --help` output (run locally against this
+          # same build).
+          xvfb-run -a ./clap-validator validate build/bin/MixAdvice.clap
+
+      - name: Install lv2lint build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          # libelf-dev is required by -Delf-tests=enabled below (the ELF
+          # symbol-visibility test the -s lv2_generate_ttl whitelist targets).
+          sudo apt-get install -y liblilv-dev lv2-dev libelf-dev meson ninja-build
+
+      - name: Build lv2lint
+        if: runner.os == 'Linux'
+        run: |
+          # lv2lint has no apt package on Ubuntu (confirmed: no lv2lint
+          # candidate in `apt-cache policy`) -- built from source per its own
+          # README (git.open-music-kontrollers.ch/~hp/lv2lint, mirrored at
+          # github.com/sfztools/lv2lint). x11-tests are deliberately left
+          # disabled: with x11-tests enabled, src/lv2lint_x11.c fails to
+          # compile on this toolchain (gcc 14 / glibc, confirmed locally) --
+          # `char path[PATH_MAX]` with no <limits.h> include, an upstream bug
+          # unrelated to anything we control. online-tests (libcurl URI
+          # checks) are also left disabled since they'd make CI depend on
+          # outbound network access for no real validation benefit here.
+          git clone --depth 1 https://github.com/sfztools/lv2lint /tmp/lv2lint
+          meson setup -Donline-tests=disabled -Delf-tests=enabled -Dx11-tests=disabled /tmp/lv2lint/build /tmp/lv2lint
+          ninja -C /tmp/lv2lint/build
+
+      - name: Validate LV2 with lv2lint
+        if: runner.os == 'Linux'
+        # lv2lint's one remaining finding against MixAdvice (a Plugin Class
+        # FAIL: rdf:type includes doap:Project alongside lv2:Plugin) is baked
+        # unconditionally into DPF's own LV2 TTL generator itself
+        # (distrho/src/DistrhoPluginLV2export.cpp, the
+        # "a lv2:Plugin, doap:Project ;" lines) -- every DPF-based LV2
+        # plugin emits this, and fixing it means patching DPF, not MixAdvice.
+        # Non-blocking until/unless that's done upstream, so a stale
+        # DPF-wide characteristic can't perpetually fail CI here.
+        continue-on-error: true
+        run: |
+          # lv2lint needs the plugin discoverable via LV2_PATH (it scans
+          # each entry's immediate subdirectories for bundles) rather than
+          # via a bare path argument -- confirmed locally on Hex: passing
+          # `-I build/bin` alone silently fell back to validating a stale
+          # previously-installed bundle instead of this build's output.
+          # /usr/lib/lv2 is included alongside build/bin so lilv can still
+          # resolve the core LV2 spec bundles (ui.lv2, urid.lv2, etc.)
+          # needed to check MixAdvice's UI extension usage.
+          # -s lv2_generate_ttl whitelists the one exported symbol DPF adds
+          # deliberately (its own --generate-ttl support), which lv2lint's
+          # ELF symbol-visibility test otherwise flags as superfluous.
+          export LV2_PATH="/usr/lib/lv2:${GITHUB_WORKSPACE}/build/bin"
+          export LD_PRELOAD="/tmp/lv2lint/build/lv2lint.so"
+          /tmp/lv2lint/build/lv2lint.bin -s lv2_generate_ttl "https://spellbound.audio/plugins/mixadvice"
