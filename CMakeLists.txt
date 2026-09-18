@@ -206,3 +206,55 @@ target_link_libraries(MixAdvice PUBLIC
     AudioPluginsCommon::io
     ${TRUESIGHT_ATOMIC_LIB}
 )
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+endif()
+
+set(_BIN "${CMAKE_BINARY_DIR}/bin")
+
+install(DIRECTORY  "${_BIN}/MixAdvice.vst3"
+        DESTINATION VST3
+        COMPONENT   Runtime
+        USE_SOURCE_PERMISSIONS)
+
+if(APPLE)
+    install(DIRECTORY  "${_BIN}/MixAdvice.clap"
+            DESTINATION CLAP
+            COMPONENT   Runtime
+            USE_SOURCE_PERMISSIONS)
+else()
+    install(FILES      "${_BIN}/MixAdvice.clap"
+            DESTINATION CLAP
+            COMPONENT   Runtime
+            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                        GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+endif()
+
+install(DIRECTORY  "${_BIN}/MixAdvice.lv2"
+        DESTINATION LV2
+        COMPONENT   Runtime
+        USE_SOURCE_PERMISSIONS)
+
+install(FILES      ${MIXADVICE_PRESET_FILES}
+        DESTINATION Presets
+        COMPONENT   Runtime)
+
+install(PROGRAMS   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.sh"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/uninstall.sh"
+        DESTINATION .
+        COMPONENT   Runtime)
+
+set(CPACK_GENERATOR                 TGZ)
+set(CPACK_PACKAGE_NAME              MixAdvice)
+set(CPACK_PACKAGE_VENDOR            Spellbound)
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Realtime mix analyzer and pre-mastering advisor")
+set(CPACK_PACKAGE_VERSION           ${PROJECT_VERSION})
+set(CPACK_SYSTEM_NAME               linux-x86_64)
+set(CPACK_PACKAGE_FILE_NAME         "MixAdvice-${PROJECT_VERSION}-linux-x86_64")
+set(CPACK_PACKAGING_INSTALL_PREFIX  "")
+set(CPACK_STRIP_FILES               TRUE)
+set(CPACK_PACKAGE_CHECKSUM          SHA256)
+set(CPACK_INSTALL_CMAKE_PROJECTS
+    "${CMAKE_BINARY_DIR};${PROJECT_NAME};Runtime;/")
+include(CPack)
