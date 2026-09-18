@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
 
 namespace {
 namespace CommonPresetIO = audioplugins::common::analysis::PresetIO;
@@ -16,6 +17,8 @@ void PresetManager::loadBuiltIn()
         std::string err;
         if (auto preset = CommonPresetIO::loadFromBuffer (embedded.xmlText, &err))
             presets_.push_back (*preset);
+        else
+            std::cerr << "PresetManager: failed to parse built-in resource: " << embedded.name << " (" << err << ")\n";
     }
 }
 
