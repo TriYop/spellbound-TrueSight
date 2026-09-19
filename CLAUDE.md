@@ -135,6 +135,24 @@ TrueSight-<version>-linux-x86_64/
 There is no `bin/TrueSight` standalone binary in the tarball — TrueSight is
 plugin-only.
 
+### Create a Debian package
+
+```bash
+sudo apt install dpkg-dev
+cmake -B build-deb -G Ninja -DCMAKE_BUILD_TYPE=Release -DPACKAGE_DEB=ON
+cmake --build build-deb --parallel
+cd build-deb && cpack
+```
+
+Produces `spellbound-truesight_<version>_<arch>.deb`, installing to
+`/usr/lib/{vst3,clap,lv2}` via `dpkg`. Reference preset XMLs land under
+`/usr/share/truesight/presets/` instead of the tarball's top-level
+`Presets/` (same files, FHS-appropriate location — factory presets are
+still compiled in, not read from either location). Requires `dpkg-dev` on
+the build host (provides `dpkg-shlibdeps`, which auto-derives the
+package's runtime `Depends:`). Uninstall with
+`sudo apt remove spellbound-truesight`.
+
 ### End-user installation from tarball
 
 ```bash

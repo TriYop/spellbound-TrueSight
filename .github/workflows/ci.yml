@@ -59,6 +59,15 @@ jobs:
         working-directory: build
         run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
 
+      - name: Build Debian package
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y dpkg-dev
+          cmake -B build-deb -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DPACKAGE_DEB=ON
+          cmake --build build-deb --config ${{ matrix.build_type }} --parallel
+          cd build-deb && cpack
+          ls *.deb
+
       # --- Plugin validators (Linux-only for now) ---
       #
       # Windows/macOS validator support is explicitly deferred: those legs
