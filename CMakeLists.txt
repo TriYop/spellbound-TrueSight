@@ -172,27 +172,18 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # over plain https using the developer's own cached git/gh credentials (no
 # token needed here), while CI authenticates via a short-lived `git config
 # url.insteadOf` rewrite (see Hex's .github/workflows/ci.yml for the pattern).
-# PATCH_COMMAND: two real compile-error fixes in Common's own v0.8.0 release
-# (its brand-new SpectrumMeter/CorrelationGauge/AdviceLabel widgets, added in
-# that same tag), not anything wrong with this repo's code. Root cause (see
-# each patch file for the full writeup): common/hui/dgl "only builds when the
-# consuming project's CMakeLists.txt calls dpf_add_plugin() ... before
-# FetchContent'ing this repo" (Common's own CLAUDE.md) -- Common's own
-# standalone build never fetches DPF, so neither CorrelationGauge.cpp nor
-# AdviceLabel.cpp had ever actually been compiled by anything before this
-# task (TrueSight Task 7) became their first real downstream consumer.
-# Same idempotent-patch caveat as the DPF patches above: only runs on a fresh
-# population of build/_deps/audiopluginscommon-src.
+#
+# No local PATCH_COMMAND needed as of v0.9.2: the two compile-error fixes
+# this repo used to route around locally (CorrelationGauge's Winding-type
+# mismatch, AdviceLabel's text-member shadowing -- both found by this
+# repo's own Task 7 against Common's then-current v0.8.0) are now fixed
+# upstream in Common itself (v0.9.1). The two local patches this comment
+# used to describe are gone; re-applying them against already-fixed source
+# would fail.
 FetchContent_Declare(AudioPluginsCommon
     GIT_REPOSITORY https://github.com/TriYop/spellbound-common.git
-    GIT_TAG        v0.8.0
+    GIT_TAG        v0.9.2
     GIT_SHALLOW    TRUE
-    PATCH_COMMAND  ${CMAKE_COMMAND}
-                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/common-correlationgauge-winding-type.patch
-                   -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
-            COMMAND ${CMAKE_COMMAND}
-                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/common-advicelabel-text-shadowing.patch
-                   -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
 )
 FetchContent_MakeAvailable(AudioPluginsCommon)
 
