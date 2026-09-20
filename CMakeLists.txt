@@ -76,10 +76,19 @@ set(_EMBED_CPP_CONTENT "#include \"EmbeddedPresets.h\"\n\nnamespace {\n")
 set(_EMBED_ENTRIES "")
 foreach(_preset_file ${TRUESIGHT_PRESET_FILES})
     get_filename_component(_name ${_preset_file} NAME_WE)
-    # Preset file stems contain hyphens (e.g. "electro-90"), which aren't
-    # valid in a C++ identifier -- sanitize for the generated variable name
-    # while keeping the original stem as the map's string key.
-    string(REPLACE "-" "_" _safe_name "${_name}")
+    # Preset file stems can contain hyphens (e.g. "electro-90") or non-ASCII
+    # characters (e.g. "zouk-la-sé-sel-medicaman"), neither of which are
+    # valid/portable in a C++ identifier -- replace every character outside
+    # [A-Za-z0-9_] for the generated variable name, while keeping the
+    # original stem as the map's string key. Plain `-` -> `_` alone (the
+    # prior version of this sanitizer) left non-ASCII bytes in the
+    # identifier; those compile fine under GCC/Clang's extended-identifier
+    # support but MSVC rejects them outright (error C3872) when the
+    # generated .cpp is read back without a UTF-8 BOM/source-charset flag,
+    # since the raw UTF-8 bytes get misdecoded per-byte against the active
+    # codepage -- caught by windows-latest CI once Windows builds got past
+    # the unrelated corrupt-patch failure this task also fixes.
+    string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _safe_name "${_name}")
     file(READ ${_preset_file} _xml_content)
     # Raw string delimiter ")XML(" doesn't appear in any file under Presets/,
     # so no escaping of the XML body itself is needed.
