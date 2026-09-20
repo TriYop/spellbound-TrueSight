@@ -6,6 +6,13 @@
 
 using audioplugins::common::dsp::SevenBandSplitter;
 
+// M_PI isn't standard C++ -- glibc/libstdc++ expose it as an extension,
+// but MSVC only defines it when _USE_MATH_DEFINES is set before <cmath>'s
+// first inclusion in the translation unit, which is fragile to header
+// ordering. Define our own constant instead of relying on it (caught by
+// windows-latest CI: error C2065 'M_PI': undeclared identifier).
+constexpr double kPi = 3.14159265358979323846;
+
 static float blockRmsDb(const std::vector<float>& v) {
     double sum = 0.0;
     for (float x : v) sum += double(x) * x;
@@ -35,7 +42,7 @@ int main() {
             float sample = 0.f;
             for (int b = 0; b < 7; ++b) {
                 sample += 0.1f * std::sin((float)phase[b]);
-                phase[b] += 2.0 * M_PI * centers[b] / sr;
+                phase[b] += 2.0 * kPi * centers[b] / sr;
             }
             input[0][i] = sample;
             input[1][i] = sample;

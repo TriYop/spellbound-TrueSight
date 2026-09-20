@@ -12,7 +12,16 @@ int main()
     const auto tmpHome = std::filesystem::temp_directory_path() / "truesight_preset_manager_test";
     std::filesystem::remove_all (tmpHome);
     std::filesystem::create_directories (tmpHome / ".config" / "MixAdvice" / "Presets");
+    // setenv() is POSIX-only; MSVC's C runtime doesn't provide it (caught by
+    // windows-latest CI: error C3861 'setenv': identifier not found) -- use
+    // its portable _putenv_s() equivalent there instead. This only needs to
+    // satisfy PresetManager::getUserPresetsDir()'s own std::getenv("HOME")
+    // read below, not model real Windows user-profile conventions.
+#ifdef _WIN32
+    _putenv_s ("HOME", tmpHome.string().c_str());
+#else
     setenv ("HOME", tmpHome.string().c_str(), 1);
+#endif
 
     {
         // Schema confirmed against Common's PresetIO.cpp (parsePresetNode) and
