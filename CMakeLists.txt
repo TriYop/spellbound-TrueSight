@@ -5,6 +5,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# MSVC doesn't expose M_PI (a POSIX extension) from <cmath> unless this is
+# defined before the header is first included. Tests/test_crossover_golden.cpp
+# and Tests/test_loudness_golden.cpp use M_PI directly. Applied at the
+# directory level so it covers every target in this CMakeLists.txt, including
+# the test executables. No-op on GCC/Clang.
+if(MSVC)
+  add_compile_definitions(_USE_MATH_DEFINES)
+endif()
+
 include(FetchContent)
 
 # DPF has no tagged releases -- downstream projects pin an exact commit SHA on
@@ -76,10 +85,19 @@ set(_EMBED_CPP_CONTENT "#include \"EmbeddedPresets.h\"\n\nnamespace {\n")
 set(_EMBED_ENTRIES "")
 foreach(_preset_file ${TRUESIGHT_PRESET_FILES})
     get_filename_component(_name ${_preset_file} NAME_WE)
-    # Preset file stems contain hyphens (e.g. "electro-90"), which aren't
-    # valid in a C++ identifier -- sanitize for the generated variable name
-    # while keeping the original stem as the map's string key.
-    string(REPLACE "-" "_" _safe_name "${_name}")
+    # Preset file stems can contain hyphens (e.g. "electro-90") or non-ASCII
+    # characters (e.g. "zouk-la-sé-sel-medicaman"), neither of which are
+    # valid/portable in a C++ identifier -- replace every character outside
+    # [A-Za-z0-9_] for the generated variable name, while keeping the
+    # original stem as the map's string key. Plain `-` -> `_` alone (the
+    # prior version of this sanitizer) left non-ASCII bytes in the
+    # identifier; those compile fine under GCC/Clang's extended-identifier
+    # support but MSVC rejects them outright (error C3872) when the
+    # generated .cpp is read back without a UTF-8 BOM/source-charset flag,
+    # since the raw UTF-8 bytes get misdecoded per-byte against the active
+    # codepage -- caught by windows-latest CI once Windows builds got past
+    # the unrelated corrupt-patch failure this task also fixes.
+    string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _safe_name "${_name}")
     file(READ ${_preset_file} _xml_content)
     # Raw string delimiter ")XML(" doesn't appear in any file under Presets/,
     # so no escaping of the XML body itself is needed.
@@ -172,27 +190,18 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # over plain https using the developer's own cached git/gh credentials (no
 # token needed here), while CI authenticates via a short-lived `git config
 # url.insteadOf` rewrite (see Hex's .github/workflows/ci.yml for the pattern).
-# PATCH_COMMAND: two real compile-error fixes in Common's own v0.8.0 release
-# (its brand-new SpectrumMeter/CorrelationGauge/AdviceLabel widgets, added in
-# that same tag), not anything wrong with this repo's code. Root cause (see
-# each patch file for the full writeup): common/hui/dgl "only builds when the
-# consuming project's CMakeLists.txt calls dpf_add_plugin() ... before
-# FetchContent'ing this repo" (Common's own CLAUDE.md) -- Common's own
-# standalone build never fetches DPF, so neither CorrelationGauge.cpp nor
-# AdviceLabel.cpp had ever actually been compiled by anything before this
-# task (TrueSight Task 7) became their first real downstream consumer.
-# Same idempotent-patch caveat as the DPF patches above: only runs on a fresh
-# population of build/_deps/audiopluginscommon-src.
+#
+# No local PATCH_COMMAND needed as of v0.9.2: the two compile-error fixes
+# this repo used to route around locally (CorrelationGauge's Winding-type
+# mismatch, AdviceLabel's text-member shadowing -- both found by this
+# repo's own Task 7 against Common's then-current v0.8.0) are now fixed
+# upstream in Common itself (v0.9.1). The two local patches this comment
+# used to describe are gone; re-applying them against already-fixed source
+# would fail.
 FetchContent_Declare(AudioPluginsCommon
     GIT_REPOSITORY https://github.com/TriYop/spellbound-common.git
-    GIT_TAG        v0.8.0
+    GIT_TAG        v0.9.2
     GIT_SHALLOW    TRUE
-    PATCH_COMMAND  ${CMAKE_COMMAND}
-                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/common-correlationgauge-winding-type.patch
-                   -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
-            COMMAND ${CMAKE_COMMAND}
-                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/common-advicelabel-text-shadowing.patch
-                   -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
 )
 FetchContent_MakeAvailable(AudioPluginsCommon)
 

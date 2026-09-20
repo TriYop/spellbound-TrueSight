@@ -24,7 +24,7 @@ endif()
 find_package(Git REQUIRED)
 
 execute_process(
-    COMMAND "${GIT_EXECUTABLE}" apply --reverse --check --ignore-whitespace "${PATCH_FILE}"
+    COMMAND "${GIT_EXECUTABLE}" apply --reverse --check --ignore-whitespace --recount "${PATCH_FILE}"
     RESULT_VARIABLE _already_applied
     OUTPUT_QUIET ERROR_QUIET)
 
@@ -34,7 +34,7 @@ if(_already_applied EQUAL 0)
 endif()
 
 execute_process(
-    COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace "${PATCH_FILE}"
+    COMMAND "${GIT_EXECUTABLE}" apply --ignore-whitespace --recount "${PATCH_FILE}"
     RESULT_VARIABLE _result
     ERROR_VARIABLE  _stderr)
 

@@ -1,0 +1,6 @@
+# Patch files are matched byte-for-byte by `git apply` against a freshly
+# checked-out DPF source tree. Never let git normalize their line endings
+# on checkout (Windows' default core.autocrlf=true would convert them to
+# CRLF, which is what caused windows-latest CI's "corrupt patch" failure
+# applying dpf-clap-activate-latency.patch) or on commit.
+cmake/patches/*.patch -text
