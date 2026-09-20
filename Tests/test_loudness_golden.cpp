@@ -6,13 +6,6 @@
 
 using audioplugins::common::analysis::LoudnessAnalyser;
 
-// M_PI isn't standard C++ -- glibc/libstdc++ expose it as an extension,
-// but MSVC only defines it when _USE_MATH_DEFINES is set before <cmath>'s
-// first inclusion in the translation unit, which is fragile to header
-// ordering. Define our own constant instead of relying on it (caught by
-// windows-latest CI: error C2065 'M_PI': undeclared identifier).
-constexpr double kPi = 3.14159265358979323846;
-
 int main() {
     LoudnessAnalyser la;
     la.prepare(48000.0, 2);
@@ -28,7 +21,7 @@ int main() {
             int n = std::min((int)buf.size(), totalSamples - done);
             for (int i = 0; i < n; ++i) {
                 buf[i] = amplitude * std::sin(phase);
-                phase += 2.0 * kPi * freq / sr;
+                phase += 2.0 * M_PI * freq / sr;
             }
             la.processBlock(buf.data(), buf.data(), n);
         }
