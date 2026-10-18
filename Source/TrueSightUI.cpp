@@ -28,7 +28,7 @@ static constexpr uint kWindowHeight = 640;
 static constexpr float kPercentileWarmupSec = 2.0f;
 
 TrueSightUI::TrueSightUI()
-    : UI(kWindowWidth, kWindowHeight)
+    : UI(kWindowWidth, kWindowHeight, true)
     , fPluginPtr(static_cast<TrueSightPluginAdapter*>(getPluginInstancePointer()))
 {
     // Registers DPF's built-in NANOVG_DEJAVU_SANS_TTF font with this UI's

@@ -40,6 +40,7 @@
 //    HexPluginAdapter's direct-access meter pattern.
 #define DISTRHO_PLUGIN_HAS_UI              1
 #define DISTRHO_UI_USE_NANOVG              1
+#define DISTRHO_UI_USER_RESIZABLE          1
 #define DISTRHO_PLUGIN_WANT_DIRECT_ACCESS  1
 
 // DPF defaults DISTRHO_PLUGIN_AND_UI_IN_SINGLE_OBJECT to
