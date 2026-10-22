@@ -16,7 +16,11 @@
 #define DISTRHO_PLUGIN_NUM_INPUTS  2
 #define DISTRHO_PLUGIN_NUM_OUTPUTS 2
 #define DISTRHO_PLUGIN_IS_SYNTH    0
-#define DISTRHO_PLUGIN_WANT_STATE  0
+// One persisted UI state: "zoom" (shared zoom pills, "0".."3", default "0" = 100%).
+// Validated with ZoomController::parseState; held in Common's lock-free ZoomStateHolder.
+#define DISTRHO_PLUGIN_WANT_STATE  1
+#define DISTRHO_PLUGIN_NUM_STATES  1
+#define DISTRHO_PLUGIN_WANT_FULL_STATE 1  // required for the getState() override
 #define DISTRHO_PLUGIN_WANT_PROGRAMS 0
 #define DISTRHO_PLUGIN_WANT_MIDI_INPUT 0
 #define DISTRHO_PLUGIN_WANT_LATENCY 0
