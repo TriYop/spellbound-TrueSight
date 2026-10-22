@@ -1,0 +1,66 @@
+diff --git a/distrho/src/DistrhoPluginLV2export.cpp b/distrho/src/DistrhoPluginLV2export.cpp
+index dd5cc92..d0bcfbd 100644
+--- a/distrho/src/DistrhoPluginLV2export.cpp
++++ b/distrho/src/DistrhoPluginLV2export.cpp
+@@ -164,6 +164,7 @@ static constexpr const char* const lv2ManifestUiOptionalFeatures[] = {
+     "ui:noUserResize",
+    #endif
+     "ui:parent",
++    "ui:resize",
+     "ui:touch",
+   #endif
+     "ui:requestValue",
+diff --git a/distrho/src/DistrhoUILV2.cpp b/distrho/src/DistrhoUILV2.cpp
+index 7f5e414..0c69790 100644
+--- a/distrho/src/DistrhoUILV2.cpp
++++ b/distrho/src/DistrhoUILV2.cpp
+@@ -89,6 +89,7 @@ public:
+           fUiPortMap(getLv2Feature<LV2UI_Port_Map>(features, LV2_UI__portMap)),
+           fUiRequestValue(getLv2Feature<LV2UI_Request_Value>(features, LV2_UI__requestValue)),
+           fUiTouch(getLv2Feature<LV2UI_Touch>(features, LV2_UI__touch)),
++          fUiResize(getLv2Feature<LV2UI_Resize>(features, LV2_UI__resize)),
+           fController(controller),
+           fWriteFunction(writeFunc),
+           fURIDs(uridMap),
+@@ -234,6 +235,31 @@ public:
+     // -------------------------------------------------------------------
+ 
+     int lv2ui_idle()
++    {
++        const int ret = lv2ui_idle_internal();
++        notifyHostOfSizeChange();
++        return ret;
++    }
++
++    // plugin-initiated resizes (UI::setSize) are not reported to LV2 hosts by DPF,
++    // so tell the host through the ui:resize feature whenever the real window size changed
++    void notifyHostOfSizeChange()
++    {
++        if (fUiResize == nullptr || fUiResize->ui_resize == nullptr)
++            return;
++
++        const uint width = fUI.getWidth();
++        const uint height = fUI.getHeight();
++
++        if (width == 0 || height == 0 || (width == fLastNotifiedWidth && height == fLastNotifiedHeight))
++            return;
++
++        fLastNotifiedWidth = width;
++        fLastNotifiedHeight = height;
++        fUiResize->ui_resize(fUiResize->handle, static_cast<int>(width), static_cast<int>(height));
++    }
++
++    int lv2ui_idle_internal()
+     {
+         if (fWinIdWasNull)
+             return (fUI.plugin_idle() && fUI.isVisible()) ? 0 : 1;
+@@ -302,6 +328,9 @@ private:
+     const LV2UI_Port_Map*      const fUiPortMap;
+     const LV2UI_Request_Value* const fUiRequestValue;
+     const LV2UI_Touch*         const fUiTouch;
++    const LV2UI_Resize*        const fUiResize;
++    uint fLastNotifiedWidth = 0;
++    uint fLastNotifiedHeight = 0;
+ 
+     // LV2 UI stuff
+     const LV2UI_Controller     fController;

@@ -22,7 +22,7 @@ include(FetchContent)
 # first (see AudioPlugins/Hex/CMakeLists.txt).
 set(AUDIOPLUGINS_DPF_GIT_TAG "4238e1c7f0351bbe488d79f0899c540543ac7583" CACHE STRING "Pinned DPF commit")
 
-# PATCH_COMMAND (two patches, copied verbatim from Hex/cmake/patches -- see
+# PATCH_COMMAND (three patches; first two copied verbatim from Hex/cmake/patches -- see
 # each file for the full explanation and verification notes; neither reported
 # upstream yet):
 #
@@ -39,6 +39,9 @@ set(AUDIOPLUGINS_DPF_GIT_TAG "4238e1c7f0351bbe488d79f0899c540543ac7583" CACHE ST
 #    instead) -- caught by clap-validator's transport-null/transport-fuzz/
 #    transport-fuzz-sample-accurate tests.
 #
+# 3. dpf-lv2-ui-resize.patch -- copied from Common cmake/patches; makes the LV2 UI ttl
+#    advertise ui:resize so hosts honour the zoom pills.
+#
 # CAVEAT (CMake FetchContent): the patch step only runs on a *fresh* population of the
 # source dir. If build/_deps/dpf-src already exists from an earlier configure, a plain
 # reconfigure will NOT re-run it -- delete build/ (or at least build/_deps/dpf-*) when you
@@ -54,6 +57,9 @@ FetchContent_Declare(dpf
                    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
             COMMAND ${CMAKE_COMMAND}
                    -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/dpf-clap-activate-latency.patch
+                   -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
+            COMMAND ${CMAKE_COMMAND}
+                   -DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/dpf-lv2-ui-resize.patch
                    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/apply_patch.cmake
 )
 FetchContent_MakeAvailable(dpf)
@@ -200,7 +206,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # would fail.
 FetchContent_Declare(AudioPluginsCommon
     GIT_REPOSITORY https://github.com/TriYop/spellbound-common.git
-    GIT_TAG        v0.9.2
+    GIT_TAG        v0.12.0
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(AudioPluginsCommon)
@@ -221,6 +227,7 @@ enable_testing()
 add_subdirectory(Tests)
 
 target_link_libraries(TrueSight PUBLIC
+    AudioPluginsCommon::hui   # ZoomController (state validation in the adapter)
     AudioPluginsCommon::dsp
     AudioPluginsCommon::analysis
     AudioPluginsCommon::io

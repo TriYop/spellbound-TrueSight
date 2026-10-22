@@ -242,3 +242,5 @@ list; `TrueSightPluginAdapter`'s single automatable parameter
 `TrueSightUI`'s `PresetSelector` widget via `parameterChanged()`/
 `onIndexSelected`. Each preset defines per-band target levels and other
 thresholds `deriveAdvice()` compares the live analysis against.
+
+**Resizable UI + shared zoom pills**: `DISTRHO_UI_USER_RESIZABLE 1`, `UI(W,H,true)` (base 760x640, unchanged; no bare `setGeometryConstraints`). `AudioPluginsCommon::hui::dgl::ZoomPills` (`TrueSightUI::fZoomPills`, declared BEFORE `fPresetSelector` so the dropdown draws over it) is right-aligned in the preset bar at x 580..740 (full 160px; the selector ends at x=320, so 412px are free and it never shrinks/hides). Zoom persists as the single DPF state `"zoom"` (`WANT_STATE 1`, `NUM_STATES 1`, `WANT_FULL_STATE 1`), held in Common's lock-free `ZoomStateHolder` in the adapter ("0".."3", junk ignored, default "0"). `TrueSight` links `AudioPluginsCommon::hui` (DSP side). LV2 needs `cmake/patches/dpf-lv2-ui-resize.patch` (chained in the `dpf` `PATCH_COMMAND`) so `TrueSight_ui.ttl` advertises `ui:resize`. Holder is unit-tested in Common.

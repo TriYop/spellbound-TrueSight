@@ -2,6 +2,7 @@
 #include "DistrhoPlugin.hpp"
 #include "Analysis/AnalyserEngine.h"
 #include "Presets/PresetManager.h"
+#include "audioplugins/common/hui/ZoomController.h"
 #include <atomic>
 
 START_NAMESPACE_DISTRHO
@@ -21,6 +22,10 @@ protected:
     uint32_t getVersion() const override { return d_version(0, 2, 0); }
 
     void initParameter(uint32_t index, Parameter& parameter) override;
+
+    void initState(uint32_t index, State& state) override;
+    String getState(const char* key) const override;
+    void setState(const char* key, const char* value) override;
 
     void activate() override;
     void deactivate() override;
@@ -62,6 +67,8 @@ private:
     bool wasPlaying_ = false;
     std::atomic<bool> isPlaying_ { false };
     AnalyserEngine analyser_;
+    // Lock-free: LV2 setState may run on the audio thread, getState on the main thread.
+    audioplugins::common::hui::ZoomStateHolder zoomState_;
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrueSightPluginAdapter)
 };
