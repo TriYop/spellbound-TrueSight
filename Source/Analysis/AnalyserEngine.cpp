@@ -5,7 +5,7 @@
 
 void AnalyserEngine::prepare (double sampleRate, int maxBlockSize, int numChannels)
 {
-    splitter_.prepare (static_cast<float> (sampleRate), numChannels);
+    splitter_.prepare (static_cast<float> (sampleRate), numChannels, maxBlockSize);
     splitterInput_.assign (static_cast<size_t> (numChannels), std::vector<float> (static_cast<size_t> (maxBlockSize)));
     splitterBands_.assign (static_cast<size_t> (BandConfig::numBands),
         std::vector<std::vector<float>> (static_cast<size_t> (numChannels), std::vector<float> (static_cast<size_t> (maxBlockSize))));
