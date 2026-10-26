@@ -27,9 +27,25 @@ static constexpr uint kWindowHeight = 640;
 // have accumulated since the last resetPeaks().
 static constexpr float kPercentileWarmupSec = 2.0f;
 
+// Preset bar: selector at x=20 (closed 300x28), pills right-aligned to the
+// content edge (kWindowWidth - 20) and clear of the selector by 8px.
+static constexpr float kPresetBarX = 20.0f, kPresetBarY = 12.0f, kPresetBarH = 28.0f;
+static constexpr float kPresetSelectorW = 300.0f;
+
+// Zoom pills in the plugin's purple preset-bar colours.
+static const audioplugins::common::hui::dgl::PillSelectorPalette kZoomPalette = {
+    /* track      */ { 0x13, 0x13, 0x1f, 0xff },
+    /* pill       */ { 0x2a, 0x1f, 0x33, 0xff },
+    /* activePill */ { 0xaa, 0x44, 0xee, 0xff },
+    /* text       */ { 0xcc, 0xaa, 0xee, 0xff },
+    /* activeText */ { 0xf4, 0xea, 0xff, 0xff },
+};
+
 TrueSightUI::TrueSightUI()
     : UI(kWindowWidth, kWindowHeight, true)
     , fPluginPtr(static_cast<TrueSightPluginAdapter*>(getPluginInstancePointer()))
+    , fZoomPills(this, kWindowWidth, kWindowHeight, kZoomPalette,
+                 [this](const char* key, const char* value) { setState(key, value); })
 {
     // Registers DPF's built-in NANOVG_DEJAVU_SANS_TTF font with this UI's
     // NanoVG context. PresetSelector::onNanoDisplay() calls
@@ -51,8 +67,8 @@ TrueSightUI::TrueSightUI()
     }
 
     fPresetSelector = std::make_unique<PresetSelector>(this);
-    fPresetSelector->setAbsolutePos(20, 12);
-    fPresetSelector->setClosedSize(300, 28);
+    fPresetSelector->setAbsolutePos(static_cast<int>(kPresetBarX), static_cast<int>(kPresetBarY));
+    fPresetSelector->setClosedSize(static_cast<uint>(kPresetSelectorW), static_cast<uint>(kPresetBarH));
     fPresetSelector->onIndexSelected = [this](int index)
     {
         fPluginPtr->setParameterValue(kParameterPresetIndex, static_cast<float>(index));
@@ -74,7 +90,15 @@ TrueSightUI::TrueSightUI()
     // past its bottom edge. See kWindowHeight above (I1, final whole-branch review).
     fAdvicePanel->setSize(720, 180);
 
+    fZoomPills.place(static_cast<float>(kWindowWidth) - kPresetBarX, kPresetBarY, kPresetBarH,
+                     kPresetBarX + kPresetSelectorW + 8.0f);
+
     refreshPresetSelector();
+}
+
+void TrueSightUI::stateChanged(const char* key, const char* value)
+{
+    fZoomPills.onStateChanged(key, value);
 }
 
 void TrueSightUI::refreshPresetSelector()
@@ -96,6 +120,8 @@ void TrueSightUI::parameterChanged(const uint32_t index, const float value)
 
 void TrueSightUI::uiIdle()
 {
+    fZoomPills.onIdle();
+
     const auto snap = fPluginPtr->getAnalysisResult().read();
 
     std::array<float, BandConfig::numBands> levelsL{}, levelsR{}, refs{};

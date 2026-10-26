@@ -2,12 +2,34 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <audioplugins/common/hui/ZoomState.h>
 
 START_NAMESPACE_DISTRHO
 
 TrueSightPluginAdapter::TrueSightPluginAdapter()
-    : Plugin(kParameterCount, 0, 0)
+    : Plugin(kParameterCount, 0, 1)   // 1 parameter, 0 programs, 1 state ("zoom")
 {
+}
+
+void TrueSightPluginAdapter::initState(const uint32_t index, State& state)
+{
+    if (index != 0) return;
+    state.key = audioplugins::common::hui::ZoomState::kStateKey;
+    state.label = "Zoom";
+    state.defaultValue = "0";
+}
+
+String TrueSightPluginAdapter::getState(const char* key) const
+{
+    if (key != nullptr && std::strcmp(key, audioplugins::common::hui::ZoomState::kStateKey) == 0)
+        return String(zoomState_.text().c_str());
+    return String();
+}
+
+void TrueSightPluginAdapter::setState(const char* key, const char* value)
+{
+    if (key != nullptr && std::strcmp(key, audioplugins::common::hui::ZoomState::kStateKey) == 0)
+        zoomState_.set(value);   // junk/null ignored
 }
 
 void TrueSightPluginAdapter::initParameter(const uint32_t index, Parameter& parameter)
