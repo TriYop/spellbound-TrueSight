@@ -32,19 +32,11 @@ static constexpr float kPercentileWarmupSec = 2.0f;
 static constexpr float kPresetBarX = 20.0f, kPresetBarY = 12.0f, kPresetBarH = 28.0f;
 static constexpr float kPresetSelectorW = 300.0f;
 
-// Zoom pills in the plugin's purple preset-bar colours.
-static const audioplugins::common::hui::dgl::PillSelectorPalette kZoomPalette = {
-    /* track      */ { 0x13, 0x13, 0x1f, 0xff },
-    /* pill       */ { 0x2a, 0x1f, 0x33, 0xff },
-    /* activePill */ { 0xaa, 0x44, 0xee, 0xff },
-    /* text       */ { 0xcc, 0xaa, 0xee, 0xff },
-    /* activeText */ { 0xf4, 0xea, 0xff, 0xff },
-};
-
 TrueSightUI::TrueSightUI()
     : UI(kWindowWidth, kWindowHeight, true)
     , fPluginPtr(static_cast<TrueSightPluginAdapter*>(getPluginInstancePointer()))
-    , fZoomPills(this, kWindowWidth, kWindowHeight, kZoomPalette,
+    , fZoomPills(this, kWindowWidth, kWindowHeight,
+                 audioplugins::common::hui::dgl::PillSelectorPalette{},   // hardware-theme defaults
                  [this](const char* key, const char* value) { setState(key, value); })
 {
     // Registers DPF's built-in NANOVG_DEJAVU_SANS_TTF font with this UI's
