@@ -281,7 +281,8 @@ install(FILES      ${TRUESIGHT_PRESET_FILES}
         DESTINATION ${_DEST_PRESETS}
         COMPONENT   Runtime)
 
-if(NOT PACKAGE_DEB)
+# bash scripts are meaningless in a Windows zip
+if(NOT PACKAGE_DEB AND NOT WIN32)
     install(PROGRAMS   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.sh"
                        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/uninstall.sh"
             DESTINATION .
