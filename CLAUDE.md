@@ -153,6 +153,14 @@ the build host (provides `dpkg-shlibdeps`, which auto-derives the
 package's runtime `Depends:`). Uninstall with
 `sudo apt remove spellbound-truesight`.
 
+### Automated releases
+
+Pushing a `vX.Y.Z` tag triggers the `release` job in `.github/workflows/ci.yml`,
+which publishes a GitHub Release containing the Linux tarball (plus its
+`.sha256`), the `.deb` and the Windows zip (produced only when the Windows
+packaging step succeeds; best-effort). No extra secret is needed (it uses the
+workflow's `GITHUB_TOKEN`). macOS is not packaged.
+
 ### End-user installation from tarball
 
 ```bash
