@@ -281,7 +281,8 @@ install(FILES      ${TRUESIGHT_PRESET_FILES}
         DESTINATION ${_DEST_PRESETS}
         COMPONENT   Runtime)
 
-if(NOT PACKAGE_DEB)
+# bash scripts are meaningless in a Windows zip
+if(NOT PACKAGE_DEB AND NOT WIN32)
     install(PROGRAMS   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/install.sh"
                        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/uninstall.sh"
             DESTINATION .
@@ -310,14 +311,19 @@ if(PACKAGE_DEB)
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS     TRUE)
     set(CPACK_DEBIAN_FILE_NAME             DEB-DEFAULT)
 else()
-    # ── CPack (TGZ) ───────────────────────────────────────────────────────────
-    set(CPACK_GENERATOR                 TGZ)
+    # ── CPack (portable archive) ───────────────────────────────────────────────────────────
+    if(WIN32)
+        set(CPACK_GENERATOR             ZIP)
+        set(CPACK_SYSTEM_NAME           windows-x86_64)
+    else()
+        set(CPACK_GENERATOR             TGZ)
+        set(CPACK_SYSTEM_NAME           linux-x86_64)
+    endif()
     set(CPACK_PACKAGE_NAME              TrueSight)
     set(CPACK_PACKAGE_VENDOR            Spellbound)
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Realtime mix analyzer and pre-mastering advisor")
     set(CPACK_PACKAGE_VERSION           ${PROJECT_VERSION})
-    set(CPACK_SYSTEM_NAME               linux-x86_64)
-    set(CPACK_PACKAGE_FILE_NAME         "TrueSight-${PROJECT_VERSION}-linux-x86_64")
+    set(CPACK_PACKAGE_FILE_NAME         "TrueSight-${PROJECT_VERSION}-${CPACK_SYSTEM_NAME}")
     set(CPACK_PACKAGING_INSTALL_PREFIX  "")
     set(CPACK_STRIP_FILES               TRUE)
     set(CPACK_PACKAGE_CHECKSUM          SHA256)

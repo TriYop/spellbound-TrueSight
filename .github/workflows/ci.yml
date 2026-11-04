@@ -68,6 +68,42 @@ jobs:
           cd build-deb && cpack
           ls *.deb
 
+      - name: Build portable tarball
+        if: runner.os == 'Linux'
+        working-directory: build
+        run: |
+          cpack
+          ls *.tar.gz
+
+      - name: Upload Linux tarball
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: truesight-linux-tarball
+          path: build/*.tar.gz*
+          if-no-files-found: error
+
+      - name: Upload Linux .deb
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: truesight-linux-deb
+          path: build-deb/*.deb
+          if-no-files-found: error
+
+      - name: Build Windows package
+        if: runner.os == 'Windows'
+        working-directory: build
+        run: cpack -C ${{ matrix.build_type }}
+
+      - name: Upload Windows zip
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: truesight-windows-zip
+          path: build/*.zip*
+          if-no-files-found: warn
+
       # --- Plugin validators (Linux-only for now) ---
       #
       # Windows/macOS validator support is explicitly deferred: those legs
@@ -202,3 +238,28 @@ jobs:
           export LV2_PATH="/usr/lib/lv2:${GITHUB_WORKSPACE}/build/bin"
           export LD_PRELOAD="/tmp/lv2lint/build/lv2lint.so"
           /tmp/lv2lint/build/lv2lint.bin -s lv2_generate_ttl "https://spellbound.audio/plugins/truesight"
+
+  release:
+    name: Publish GitHub Release
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create release and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mapfile -t files < <(find dist -type f)
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            "${files[@]}"
