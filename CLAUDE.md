@@ -52,14 +52,16 @@ no clap-juce-extensions):
   patches are applied at configure time (`cmake/patches/dpf-clap-*.patch`,
   both real CLAP-validator-caught bugs, not yet reported upstream).
 - **`AudioPluginsCommon`** (`github.com/TriYop/spellbound-common`, private
-  repo), pinned to tag `v0.8.0` — provides the shared DSP (`SevenBandSplitter`
+  repo), pinned to tag `v0.14.0` — provides the shared DSP (`SevenBandSplitter`
   etc.), analysis (`AdviceSet`/`deriveAdvice`/`ResonancePeakPicker`), and HUI
   (`hui::dgl::SpectrumMeter`/`CorrelationGauge`/`PresetSelector`/`AdviceLabel`)
-  libraries. Two patches fix real compile errors in Common's own v0.8.0
-  release (`cmake/patches/common-*.patch`); see each patch file for the
-  writeup. Local machines clone it over plain `https` with cached
-  git/gh credentials; CI needs `COMMON_REPO_TOKEN` (currently unprovisioned —
-  CI has never gone green on this repo for that reason, not a build problem).
+  libraries. No local patch is needed as of v0.9.2 — the two compile-error
+  fixes this repo used to carry (`CorrelationGauge` `Winding`-enum mismatch,
+  `AdviceLabel` name collision) landed upstream in Common `v0.9.1`. Local
+  machines clone it over plain `https` with cached git/gh credentials; CI
+  authenticates via the `COMMON_REPO_TOKEN` secret, which is provisioned —
+  Windows and Linux CI both pass (`gh run view --json jobs` confirms
+  `conclusion: success`), not just pipeline-green.
 
 Both `FetchContent_Declare(...)` calls only re-run their `PATCH_COMMAND` on a
 *fresh* population of `build/_deps/` — delete `build/_deps/dpf-src` or
@@ -153,14 +155,6 @@ the build host (provides `dpkg-shlibdeps`, which auto-derives the
 package's runtime `Depends:`). Uninstall with
 `sudo apt remove spellbound-truesight`.
 
-### Automated releases
-
-Pushing a `vX.Y.Z` tag triggers the `release` job in `.github/workflows/ci.yml`,
-which publishes a GitHub Release containing the Linux tarball (plus its
-`.sha256`), the `.deb` and the Windows zip (produced only when the Windows
-packaging step succeeds; best-effort). No extra secret is needed (it uses the
-workflow's `GITHUB_TOKEN`). macOS is not packaged.
-
 ### End-user installation from tarball
 
 ```bash
@@ -250,5 +244,3 @@ list; `TrueSightPluginAdapter`'s single automatable parameter
 `TrueSightUI`'s `PresetSelector` widget via `parameterChanged()`/
 `onIndexSelected`. Each preset defines per-band target levels and other
 thresholds `deriveAdvice()` compares the live analysis against.
-
-**Resizable UI + shared zoom pills**: `DISTRHO_UI_USER_RESIZABLE 1`, `UI(W,H,true)` (base 760x640, unchanged; no bare `setGeometryConstraints`). `AudioPluginsCommon::hui::dgl::ZoomPills` (`TrueSightUI::fZoomPills`, declared BEFORE `fPresetSelector` so the dropdown draws over it) is right-aligned in the preset bar at x 580..740 (full 160px; the selector ends at x=320, so 412px are free and it never shrinks/hides). Zoom persists as the single DPF state `"zoom"` (`WANT_STATE 1`, `NUM_STATES 1`, `WANT_FULL_STATE 1`), held in Common's lock-free `ZoomStateHolder` in the adapter ("0".."3", junk ignored, default "0"). `TrueSight` links `AudioPluginsCommon::hui` (DSP side). LV2 needs `cmake/patches/dpf-lv2-ui-resize.patch` (chained in the `dpf` `PATCH_COMMAND`) so `TrueSight_ui.ttl` advertises `ui:resize`. Holder is unit-tested in Common.
