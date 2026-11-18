@@ -6,6 +6,10 @@ on:
     tags: [ "v*" ]
   pull_request:
     branches: [ "main", "master" ]
+  # Windows and macOS legs only run when started by hand (Actions > CI > Run
+  # workflow). They are metered at 2x and 10x, so they are off the PR/push path
+  # until a self-hosted runner exists.
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -21,7 +25,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Linux on every PR/push; the full matrix only on manual dispatch.
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-latest","windows-latest","macos-latest"]' || '["ubuntu-latest"]') }}
         build_type: [Release]
 
     runs-on: ${{ matrix.os }}
